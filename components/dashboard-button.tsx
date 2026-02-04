@@ -2,14 +2,19 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Suspense } from "react";
 
-async function InstrumentButtonData() {
+async function DashboardButtonData() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
   return user ? (
     <div className="flex flex-col items-center gap-4">
       <h3>You are signed in as: {user.email}!</h3>
-      <Link href={"/instruments"}>Instruments</Link>
+      <Link
+        className="bg-secondary rounded-xl p-4 cursor-pointer"
+        href={"/dashboard"}
+      >
+        Go to Dashboard
+      </Link>
     </div>
   ) : (
     <div className="flex gap-2">
@@ -18,10 +23,10 @@ async function InstrumentButtonData() {
   );
 }
 
-export function InstrumentsButton() {
+export function DashboardButton() {
   return (
     <Suspense>
-      <InstrumentButtonData />
+      <DashboardButtonData />
     </Suspense>
   );
 }

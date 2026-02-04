@@ -14,7 +14,7 @@ export async function AuthButton() {
     </div>
   ) : (
     <div className="flex gap-2">
-      <GoogleSignInButton next="/instruments" />
+      <GoogleSignInButton next="/dashboard" />
     </div>
   );
 }

@@ -1,16 +1,6 @@
 import { AuthButton } from "@/components/auth-button";
-import { InstrumentsButton } from "@/components/instruments-button";
+import { DashboardButton } from "@/components/dashboard-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardFooter,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
 import { hasEnvVars } from "@/lib/utils";
 import { Suspense } from "react";
 
@@ -33,19 +23,7 @@ export default function Home() {
         <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
           {/* <Hero /> */}
           <main className="flex-1 flex flex-col gap-6 px-4">
-            <InstrumentsButton />
-            <Card className="p-4">
-              <CardHeader>
-                <p>Header</p>
-              </CardHeader>
-              <CardTitle>Card Title</CardTitle>
-              <CardDescription>This is a card description</CardDescription>
-              <CardContent className="flex p-4 gap-4">
-                <Button>Click me!</Button>
-                <Badge>Badge</Badge>
-              </CardContent>
-              <CardFooter>Card Footer</CardFooter>
-            </Card>
+            <DashboardButton />
           </main>
         </div>
 

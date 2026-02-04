@@ -8,7 +8,7 @@ import { createServerClient } from "@supabase/ssr";
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/instruments";
+  const next = url.searchParams.get("next") ?? "/dashboard";
 
   // We'll mutate this response after we set cookies.
   let response = NextResponse.redirect(new URL(next, url.origin));
