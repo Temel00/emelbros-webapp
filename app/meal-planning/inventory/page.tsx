@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { AuthButton } from "@/components/auth-button";
@@ -6,12 +5,16 @@ import { ThemeSwitcher } from "@/components/theme-switcher";
 import { hasEnvVars } from "@/lib/utils";
 import { AddItemForm, UpdateItemForm, DeleteItemForm } from "./widgets";
 import Link from "next/link";
-import Image from "next/image";
+import { BackArrow } from "@/components/ui/back-arrow";
+import { UUID } from "crypto";
+import { Button } from "@/components/ui/button";
 
 type InventoryItem = {
-  id: number;
+  id: UUID;
   name: string;
-  quantity?: number | null;
+  on_hand_qty: number;
+  unit: string | null;
+  density: number;
 };
 
 async function InventoryList() {
@@ -30,23 +33,26 @@ async function InventoryList() {
 
   return (
     <div className="space-y-4">
-      {/* Simple add form at the top */}
-      <AddItemForm />
+      <div>
+        <Button>close</Button>
+        <AddItemForm />
+      </div>
 
-      {/* Render items as <p>, with update/delete forms next to each */}
+      <Button>Add items</Button>
+
       <div className="space-y-1">
         {items.map((item) => (
           <div key={item.id} className="flex items-center gap-3">
             <p className="flex-1">
-              #{item.id} — {item.name}
-              {typeof item.quantity === "number"
-                ? ` (qty: ${item.quantity})`
+              {item.name} {item.on_hand_qty}
+              {typeof item.on_hand_qty === "number"
+                ? ` (qty: ${item.on_hand_qty})`
                 : null}
             </p>
             <UpdateItemForm
               id={item.id}
               currentName={item.name}
-              currentQuantity={item.quantity ?? ""}
+              currentQuantity={item.on_hand_qty ?? ""}
             />
             <DeleteItemForm id={item.id} />
           </div>
@@ -74,15 +80,10 @@ export default function InventoryPage() {
         </nav>
         <div className="flex w-5/6 py-2">
           <Link
-            className="border-3 border-terciary rounded-xl p-2 cursor-pointer"
-            href={"/dashboard"}
+            className="border-3 border-accent rounded-xl p-2 cursor-pointer"
+            href={"/meal-planning"}
           >
-            <Image
-              src="/back-arrow-icon.svg"
-              width={24}
-              height={24}
-              alt="back-icon"
-            />
+            <BackArrow width="24" height="24" />
           </Link>
         </div>
         <section className="w-full max-w-5xl p-5 space-y-6">

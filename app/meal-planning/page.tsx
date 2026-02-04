@@ -5,7 +5,7 @@ import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
 import { BackArrow } from "@/components/ui/back-arrow";
 
-export default function DashboardPage() {
+export default function MealPlanningPage() {
   return (
     <main className="min-h-screen flex flex-col items-center">
       <div className="flex-1 w-full flex flex-col gap-12 items-center">
@@ -23,17 +23,17 @@ export default function DashboardPage() {
         </nav>
         <div className="flex w-5/6 py-2">
           <Link
-            className="border-3 border-secondary text-foreground rounded-xl p-2 cursor-pointer"
-            href={"/"}
+            className="border-3 border-terciary text-foreground rounded-xl p-2 cursor-pointer"
+            href={"/dashboard"}
           >
             <BackArrow width="24" height="24" />
           </Link>
         </div>
         <section className="w-full max-w-5xl p-5 space-y-6">
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-semibold">Meal Planning</h1>
           <Link
-            className="bg-terciary rounded-xl p-4 cursor-pointer"
-            href={"/meal-planning"}
+            className="bg-accent rounded-xl p-4 cursor-pointer"
+            href={"/meal-planning/inventory"}
           >
             Inventory
           </Link>
