@@ -51,6 +51,8 @@ interface UnitSwitcherProps {
   onValueChange?: (value: string) => void;
   size?: "sm" | "default" | "lg";
   variant?: "default" | "ghost" | "outline";
+  /** When provided, renders a hidden input with this name for form submission */
+  name?: string;
 }
 
 const UnitSwitcher = ({
@@ -59,6 +61,7 @@ const UnitSwitcher = ({
   onValueChange,
   size = "lg",
   variant = "ghost",
+  name,
 }: UnitSwitcherProps) => {
   const [mounted, setMounted] = useState(false);
   const [value, setValue] = useState(currentVal);
@@ -89,6 +92,7 @@ const UnitSwitcher = ({
 
   return (
     <div className="border rounded">
+      {name && <input type="hidden" name={name} value={value} />}
       <DropdownMenu>
         <DropdownMenuTrigger className="h-8 w-20" asChild>
           <Button variant={variant} size={size}>

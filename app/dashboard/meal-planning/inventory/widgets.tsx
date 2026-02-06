@@ -21,12 +21,9 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Loader } from "lucide-react";
 
-// If your exported type is ActionResult, just use that here instead:
-type ActionState = InventoryActionState | { ok: boolean; error?: string };
-
-const initialState: ActionState = { ok: true };
+const initialState: InventoryActionState = { ok: true };
 
 function AddItemForm() {
   const [state, formAction, pending] = useActionState(
@@ -63,7 +60,7 @@ function AddItemForm() {
       </div>
       <div className="flex flex-col">
         <label>Unit</label>
-        <UnitSwitcher currentVal="g" />
+        <UnitSwitcher currentVal="g" name="unit" />
       </div>
       <button
         type="submit"
@@ -113,13 +110,12 @@ export function UpdateItemForm({
       {/* Toggle editting for each item */}
       {!showUpdateInventory ? (
         // Unedittable Item
-        <div className="w-full flex flex-end">
-          <p className="flex-1">
-            {currentName}
-            {typeof currentQuantity === "number"
-              ? `: ${currentQuantity} ${currentUnit}`
-              : null}
+        <div className="w-full flex flex-end gap-4">
+          <p className="flex-1">{currentName}</p>
+          <p>
+            {typeof currentQuantity === "number" ? `${currentQuantity}` : null}
           </p>
+          <p className="w-8">{currentUnit}</p>
           <EditGear
             onClick={() =>
               setShowUpdateInventory(
@@ -171,7 +167,7 @@ export function UpdateItemForm({
               <label className="text-xs text-foreground/50" htmlFor="name">
                 Unit
               </label>
-              <UnitSwitcher currentVal={currentUnit} />
+              <UnitSwitcher currentVal={currentUnit} name="unit" />
             </div>
             {!state.ok && (
               <span className="text-red-600 text-sm">{state.error}</span>
@@ -221,7 +217,11 @@ export function DeleteItemForm({ id }: { id: UUID }) {
         className="text-red-600 border px-3 py-1 rounded"
         disabled={pending}
       >
-        {pending ? "Deleting…" : "Delete"}
+        {pending ? (
+          <Loader className="w-4 h-4 mr-2" />
+        ) : (
+          <Trash2 className="w-4 h-4 mr-2" />
+        )}
       </button>
       {!state.ok && <span className="text-red-600 text-sm">{state.error}</span>}
     </form>
@@ -278,7 +278,8 @@ export function InventorySearchFilter() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchValue, searchParams, router, pathname]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchValue]);
 
   const handleCategoryChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());

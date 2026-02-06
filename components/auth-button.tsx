@@ -3,12 +3,12 @@ import { LogoutButton } from "./logout-button";
 import { GoogleSignInButton } from "./google-sign-in";
 
 export async function AuthButton() {
-  const supabase = await createClient();  
+  const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
   return user ? (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4 text-background dark:text-foreground">
       Hey, {user.email}!
       <LogoutButton />
     </div>
