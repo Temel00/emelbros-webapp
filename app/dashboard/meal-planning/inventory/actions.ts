@@ -27,6 +27,7 @@ export async function addInventoryItem(
   const name = String(formData.get("name") || "").trim();
   const quantityRaw = formData.get("quantity");
   const quantity = Number(quantityRaw);
+  const unit = String(formData.get("unit") || "g").trim();
 
   if (!name) {
     return { ok: false, error: "Name is required" };
@@ -53,7 +54,7 @@ export async function addInventoryItem(
 
   const { error: insertError } = await supabase
     .from("inventory")
-    .insert([{ name, on_hand_qty: quantity } satisfies Partial<InventoryItem>]);
+    .insert([{ name, on_hand_qty: quantity, unit } satisfies Partial<InventoryItem>]);
 
   if (insertError) {
     // Friendly handling of common cases
@@ -102,6 +103,12 @@ export async function updateInventoryItem(
       return { ok: false, error: "Quantity must be a non-negative number" };
     }
     next.on_hand_qty = q;
+  }
+  if (formData.has("unit")) {
+    const unitVal = String(formData.get("unit") || "").trim();
+    if (unitVal) {
+      next.unit = unitVal;
+    }
   }
 
   if (Object.keys(next).length === 0) {

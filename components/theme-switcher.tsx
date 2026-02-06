@@ -30,16 +30,28 @@ const ThemeSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size={"sm"}>
+        <Button
+          className="focus:outline-background"
+          variant="ghost"
+          size={"sm"}
+        >
           {theme === "light" ? (
-            <Sun key="light" size={ICON_SIZE} className={"text-foreground"} />
+            <Sun
+              key="light"
+              size={ICON_SIZE}
+              className={"text-background dark:text-foreground"}
+            />
           ) : theme === "dark" ? (
-            <Moon key="dark" size={ICON_SIZE} className={"text-foreground"} />
+            <Moon
+              key="dark"
+              size={ICON_SIZE}
+              className={"text-background dark:text-foreground"}
+            />
           ) : (
             <Laptop
               key="system"
               size={ICON_SIZE}
-              className={"text-foreground"}
+              className={"text-background dark:text-foreground"}
             />
           )}
         </Button>
@@ -50,13 +62,24 @@ const ThemeSwitcher = () => {
           onValueChange={(e) => setTheme(e)}
         >
           <DropdownMenuRadioItem className="flex gap-2" value="light">
-            <Sun size={ICON_SIZE} className="text-foreground" /> <span>Light</span>
+            <Sun
+              size={ICON_SIZE}
+              className="text-background dark:text-foreground"
+            />{" "}
+            <span>Light</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="flex gap-2" value="dark">
-            <Moon size={ICON_SIZE} className="text-foreground" /> <span>Dark</span>
+            <Moon
+              size={ICON_SIZE}
+              className="text-background dark:text-foreground"
+            />{" "}
+            <span>Dark</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="flex gap-2" value="system">
-            <Laptop size={ICON_SIZE} className="text-foreground" />{" "}
+            <Laptop
+              size={ICON_SIZE}
+              className="text-background dark:text-foreground"
+            />{" "}
             <span>System</span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

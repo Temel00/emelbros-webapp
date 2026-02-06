@@ -1,10 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { AuthButton } from "@/components/auth-button";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { hasEnvVars } from "@/lib/utils";
 import BreadcrumbNav from "@/components/breadcrumb-nav";
+import { PageHeader } from "@/components/page-header";
 import type { UUID } from "crypto";
 import {
   UpdateRecipeForm,
@@ -137,23 +135,12 @@ export default function RecipeDetailPage({
 }) {
   return (
     <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-6xl flex gap-5 justify-between items-center p-3 px-5 text-sm">
-            <ThemeSwitcher />
-            {!hasEnvVars ? (
-              <p>Missing ENV vars</p>
-            ) : (
-              <Suspense>
-                <AuthButton />
-              </Suspense>
-            )}
-          </div>
-        </nav>
+      <div className="flex-1 w-full flex flex-col gap-4 items-center">
+        <PageHeader />
         <Suspense>
           <BreadcrumbNav />
         </Suspense>
-        <section className="w-full max-w-5xl p-5 space-y-6">
+        <section className="w-full max-w-5xl p-5 space-y-4">
           <Suspense fallback={<div>Loading recipe...</div>}>
             <RecipeDetail params={params} searchParams={searchParams} />
           </Suspense>
