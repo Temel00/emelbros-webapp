@@ -3,7 +3,7 @@ import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
-import { BackArrow } from "@/components/ui/back-arrow";
+import BreadcrumbNav from "@/components/breadcrumb-nav";
 
 export default function DashboardPage() {
   return (
@@ -21,21 +21,14 @@ export default function DashboardPage() {
             )}
           </div>
         </nav>
-        <div className="flex w-5/6 py-2">
-          <Link
-            className="border-3 border-secondary text-foreground rounded-xl p-2 cursor-pointer"
-            href={"/"}
-          >
-            <BackArrow width="24" height="24" />
-          </Link>
-        </div>
+        <BreadcrumbNav />
         <section className="w-full max-w-5xl p-5 space-y-6">
           <h1 className="text-2xl font-semibold">Dashboard</h1>
           <Link
             className="bg-terciary rounded-xl p-4 cursor-pointer"
-            href={"/meal-planning"}
+            href={"/dashboard/meal-planning"}
           >
-            Inventory
+            Meal Planning
           </Link>
         </section>
       </div>

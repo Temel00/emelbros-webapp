@@ -1,0 +1,46 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.instructions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  recipe_id uuid NOT NULL,
+  step_number integer NOT NULL CHECK (step_number > 0),
+  text text NOT NULL,
+  detail text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT instructions_pkey PRIMARY KEY (id),
+  CONSTRAINT instructions_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
+);
+CREATE TABLE public.inventory (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  on_hand_qty double precision NOT NULL DEFAULT '0'::double precision,
+  unit text,
+  density double precision NOT NULL DEFAULT '1'::double precision,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT inventory_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.recipe_ingredients (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  recipe_id uuid NOT NULL,
+  inventory_id uuid NOT NULL,
+  amount numeric,
+  unit text,
+  first_used_step integer CHECK (first_used_step IS NULL OR first_used_step > 0),
+  used_in_steps ARRAY DEFAULT '{}'::integer[],
+  note text,
+  position integer,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT recipe_ingredients_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_ingredients_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id),
+  CONSTRAINT recipe_ingredients_inventory_id_fkey FOREIGN KEY (inventory_id) REFERENCES public.inventory(id)
+);
+CREATE TABLE public.recipes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  prep_minutes integer NOT NULL CHECK (prep_minutes >= 0),
+  cook_minutes integer NOT NULL CHECK (cook_minutes >= 0),
+  total_minutes integer DEFAULT (prep_minutes + cook_minutes),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT recipes_pkey PRIMARY KEY (id)
+);
