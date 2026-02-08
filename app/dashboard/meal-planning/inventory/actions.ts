@@ -4,19 +4,69 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { UUID } from "crypto";
+import { getUnitsForCategory } from "@/lib/unit-conversions";
+import type { UnitCategory } from "@/components/unit-switcher";
 
 export type InventoryActionState = {
   ok: boolean;
   error?: string;
 };
 
-type InventoryItem = {
+export type InventoryItem = {
   id: UUID;
   name: string;
   on_hand_qty: number;
-  unit: string | null;
+  unit: string;
   density: number;
+  unit_category: "weight" | "volume" | "count" | null;
+  location: "pantry" | "fridge" | "freezer" | "other" | null;
 };
+
+export type InventoryFetchResult = {
+  items: InventoryItem[];
+  hasMore: boolean;
+  totalItems: number;
+};
+
+export async function fetchInventoryItems(
+  loadNumber: number,
+  search: string,
+  category: string,
+  itemsPerLoad: number,
+): Promise<InventoryFetchResult> {
+  const supabase = await createClient();
+
+  let query = supabase.from("inventory").select("*", { count: "exact" });
+
+  if (search) {
+    query = query.ilike("name", `%${search}%`);
+  }
+
+  if (category !== "all") {
+    const units = getUnitsForCategory(category as UnitCategory);
+    query = query.in("unit", units);
+  }
+
+  const from = (loadNumber - 1) * itemsPerLoad;
+  const to = from + itemsPerLoad - 1;
+
+  const { data, error, count } = await query
+    .order("name", { ascending: true })
+    .range(from, to);
+
+  if (error) {
+    return { items: [], hasMore: false, totalItems: 0 };
+  }
+
+  const items = (data || []) as InventoryItem[];
+  const totalItems = count ?? 0;
+
+  return {
+    items,
+    hasMore: from + items.length < totalItems,
+    totalItems,
+  };
+}
 
 export async function addInventoryItem(
   _prevState: InventoryActionState,
@@ -28,6 +78,18 @@ export async function addInventoryItem(
   const quantityRaw = formData.get("quantity");
   const quantity = Number(quantityRaw);
   const unit = String(formData.get("unit") || "g").trim();
+  const unitCategoryRaw = String(formData.get("unit_category") || "").trim();
+  const unitCategory = (
+    ["weight", "volume", "count"].includes(unitCategoryRaw)
+      ? unitCategoryRaw
+      : null
+  ) as InventoryItem["unit_category"];
+  const locationRaw = String(formData.get("location") || "").trim();
+  const location = (
+    ["pantry", "fridge", "freezer", "other"].includes(locationRaw)
+      ? locationRaw
+      : null
+  ) as InventoryItem["location"];
 
   if (!name) {
     return { ok: false, error: "Name is required" };
@@ -54,7 +116,7 @@ export async function addInventoryItem(
 
   const { error: insertError } = await supabase
     .from("inventory")
-    .insert([{ name, on_hand_qty: quantity, unit } satisfies Partial<InventoryItem>]);
+    .insert([{ name, on_hand_qty: quantity, unit, unit_category: unitCategory, location } satisfies Partial<InventoryItem>]);
 
   if (insertError) {
     // Friendly handling of common cases
@@ -75,7 +137,7 @@ export async function addInventoryItem(
     return { ok: false, error: insertError.message };
   }
 
-  revalidatePath("/meal-planning/inventory");
+  revalidatePath("/dashboard/meal-planning/inventory");
   return { ok: true };
 }
 
@@ -110,6 +172,20 @@ export async function updateInventoryItem(
       next.unit = unitVal;
     }
   }
+  if (formData.has("unit_category")) {
+    const ucRaw = String(formData.get("unit_category") || "").trim();
+    next.unit_category = (
+      ["weight", "volume", "count"].includes(ucRaw) ? ucRaw : null
+    ) as InventoryItem["unit_category"];
+  }
+  if (formData.has("location")) {
+    const locRaw = String(formData.get("location") || "").trim();
+    next.location = (
+      ["pantry", "fridge", "freezer", "other"].includes(locRaw)
+        ? locRaw
+        : null
+    ) as InventoryItem["location"];
+  }
 
   if (Object.keys(next).length === 0) {
     return { ok: false, error: "No fields to update" };
@@ -121,7 +197,7 @@ export async function updateInventoryItem(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/meal-planning/inventory");
+  revalidatePath("/dashboard/meal-planning/inventory");
   return { ok: true };
 }
 
@@ -143,6 +219,6 @@ export async function deleteInventoryItem(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/meal-planning/inventory");
+  revalidatePath("/dashboard/meal-planning/inventory");
   return { ok: true };
 }

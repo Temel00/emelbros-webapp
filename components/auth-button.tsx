@@ -8,8 +8,10 @@ export async function AuthButton() {
   const user = data?.claims;
 
   return user ? (
-    <div className="flex items-center gap-4 text-background dark:text-foreground">
-      Hey, {user.email}!
+    <div className="flex items-center gap-4 text-background dark:text-foreground text-xs">
+      <p className="w-12 md:w-36 overflow-hidden text-ellipsis">
+        Hey, {user.email}!
+      </p>
       <LogoutButton />
     </div>
   ) : (
