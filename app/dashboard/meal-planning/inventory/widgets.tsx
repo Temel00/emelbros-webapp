@@ -19,7 +19,7 @@ import {
 import { UnitSwitcher } from "@/components/unit-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EditGear } from "@/components/ui/edit-gear";
+// import { EditGear } from "@/components/ui/edit-gear";
 import {
   Dialog,
   DialogClose,
@@ -135,7 +135,7 @@ function IconToggle<T extends string>({
           return (
             <Tooltip key={opt.value}>
               <TooltipTrigger asChild>
-                <button
+                <Button
                   type="button"
                   onClick={() => onChange(isSelected ? null : opt.value)}
                   className={cn(
@@ -146,7 +146,7 @@ function IconToggle<T extends string>({
                   )}
                 >
                   <Icon className="w-4 h-4" />
-                </button>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>{opt.label}</p>
@@ -244,10 +244,10 @@ function InventoryFormContent({
         className="grid gap-4"
       >
         {mode === "edit" && item && (
-          <input type="hidden" name="id" value={item.id} />
+          <Input type="hidden" name="id" value={item.id} />
         )}
-        <input type="hidden" name="unit_category" value={unitCategory ?? ""} />
-        <input type="hidden" name="location" value={location ?? ""} />
+        <Input type="hidden" name="unit_category" value={unitCategory ?? ""} />
+        <Input type="hidden" name="location" value={location ?? ""} />
 
         <div className="grid gap-2">
           <label htmlFor="name" className="text-sm font-medium">
@@ -357,7 +357,7 @@ function InventoryItemDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md border border-foreground">
         <InventoryFormContent
           mode={mode}
           item={item}
@@ -412,7 +412,7 @@ export function AddItemDialog() {
         Add Item
       </Button>
       {successMessage && (
-        <p className="text-sm text-green-600 dark:text-green-400 animate-in fade-in duration-300">
+        <p className="text-sm text-tertiary animate-in fade-in duration-300">
           {successMessage}
         </p>
       )}
@@ -442,33 +442,46 @@ export function InventoryItemRow({ item }: { item: InventoryItem }) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  const handleRowClick = () => {
+    setEditOpen(true);
+  };
+
   return (
-    <div className="flex h-6 md:h-10 items-center gap-3 text-xs md:text-lg">
-      <div className="w-5 flex justify-center">
-        {item.location && LOCATION_ICONS[item.location] && (
-          <IconWithTooltip
-            icon={LOCATION_ICONS[item.location].icon}
-            label={LOCATION_ICONS[item.location].label}
-          />
-        )}
+    <>
+      <div
+        className="bg-gradient-to-r from-background from-5% via-card via-50% to-background to-95% cursor-pointer py-[.5px] hover:bg-none"
+        onClick={handleRowClick}
+      >
+        <div className="flex h-6 md:h-10 items-center gap-3 text-xs md:text-lg bg-background hover:bg-primary/10 px-2 rounded-lg">
+          <div className="w-5 flex justify-center">
+            {item.location && LOCATION_ICONS[item.location] && (
+              <IconWithTooltip
+                icon={LOCATION_ICONS[item.location].icon}
+                label={LOCATION_ICONS[item.location].label}
+              />
+            )}
+          </div>
+          <p className="flex-1">{item.name}</p>
+          <p className="w-8 text-right">
+            {typeof item.on_hand_qty === "number"
+              ? `${item.on_hand_qty}`
+              : null}
+          </p>
+          <p className="w-8">{item.unit}</p>
+          <div className="w-5 justify-center">
+            {item.unit_category && UNIT_CATEGORY_ICONS[item.unit_category] && (
+              <IconWithTooltip
+                icon={UNIT_CATEGORY_ICONS[item.unit_category].icon}
+                label={UNIT_CATEGORY_ICONS[item.unit_category].label}
+              />
+            )}
+          </div>
+          {/* <EditGear
+          onClick={() => setEditOpen(true)}
+          className="w-3 md:w-4 hover:text-primary"
+        /> */}
+        </div>
       </div>
-      <p className="flex-1">{item.name}</p>
-      <p>
-        {typeof item.on_hand_qty === "number" ? `${item.on_hand_qty}` : null}
-      </p>
-      <p className="w-8">{item.unit}</p>
-      <div className="w-5 flex-1 justify-center">
-        {item.unit_category && UNIT_CATEGORY_ICONS[item.unit_category] && (
-          <IconWithTooltip
-            icon={UNIT_CATEGORY_ICONS[item.unit_category].icon}
-            label={UNIT_CATEGORY_ICONS[item.unit_category].label}
-          />
-        )}
-      </div>
-      <EditGear
-        onClick={() => setEditOpen(true)}
-        className="w-3 md:w-4 hover:text-primary"
-      />
       <InventoryItemDialog
         mode="edit"
         item={item}
@@ -476,7 +489,7 @@ export function InventoryItemRow({ item }: { item: InventoryItem }) {
         onOpenChange={setEditOpen}
         onItemDeleted={handleItemDeleted}
       />
-    </div>
+    </>
   );
 }
 
@@ -639,7 +652,7 @@ export function InfiniteInventoryList({
   }, [loadMore]);
 
   return (
-    <div className="space-y-1">
+    <div>
       {items.map((item) => (
         <InventoryItemRow key={item.id} item={item} />
       ))}

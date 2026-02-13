@@ -77,7 +77,7 @@
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 186 100% 98%;
-    --radius: 0.5rem;
+    --radius: 1.5rem;
   }
   .dark {
     --background: 64 100% 3%;
@@ -99,7 +99,7 @@
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 186 100% 98%;
-    --radius: 0.5rem;
+    --radius: 1.5rem;
   }
 }
 

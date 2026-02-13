@@ -1,6 +1,7 @@
 import Link from "next/link";
-import BreadcrumbNav from "@/components/breadcrumb-nav";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   return (
@@ -10,12 +11,9 @@ export default function DashboardPage() {
         <BreadcrumbNav />
         <section className="w-full max-w-5xl p-5 space-y-4">
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <Link
-            className="bg-tertiary rounded-xl p-4 cursor-pointer"
-            href={"/dashboard/meal-planning"}
-          >
-            Meal Planning
-          </Link>
+          <Button asChild variant="default" size="lg">
+            <Link href="/dashboard/meal-planning">Meal Planning</Link>
+          </Button>
         </section>
       </div>
     </main>

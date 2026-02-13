@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import BreadcrumbNav from "@/components/breadcrumb-nav";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
 import type { UUID } from "crypto";
 import {
@@ -119,9 +119,7 @@ async function RecipeDetail({
       />
 
       {/* Delete Recipe (only in edit mode) */}
-      {editMode && (
-        <DeleteRecipeForm id={recipe.id} recipeName={recipe.name} />
-      )}
+      {editMode && <DeleteRecipeForm id={recipe.id} recipeName={recipe.name} />}
     </div>
   );
 }

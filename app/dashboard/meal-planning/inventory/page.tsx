@@ -6,7 +6,7 @@ import {
   InfiniteInventoryList,
 } from "./widgets";
 import type { InventoryItem } from "./actions";
-import BreadcrumbNav from "@/components/breadcrumb-nav";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
 import { getUnitsForCategory } from "@/lib/unit-conversions";
 import type { UnitCategory } from "@/components/unit-switcher";
@@ -45,7 +45,8 @@ async function InventoryList({
     .order("name", { ascending: true })
     .range(0, ITEMS_PER_LOAD - 1);
 
-  if (error) return <div className="text-red-600">Error: {error.message}</div>;
+  if (error)
+    return <div className="text-destructive">Error: {error.message}</div>;
 
   const items = (data || []) as InventoryItem[];
   const totalItems = count ?? 0;
@@ -53,7 +54,6 @@ async function InventoryList({
 
   return (
     <div className="space-y-4">
-      <AddItemDialog />
       <Suspense fallback={<div className="h-10" />}>
         <InventorySearchFilter />
       </Suspense>
@@ -88,8 +88,13 @@ export default function InventoryPage({ searchParams }: PageProps) {
       <div className="flex-1 w-full flex flex-col gap-4 items-center">
         <PageHeader />
         <BreadcrumbNav />
-        <section className="w-full max-w-5xl p-5 space-y-4">
-          <h1 className="text-2xl font-semibold">Inventory</h1>
+        <section className="w-6/7 p-5 space-y-4 border border-foreground rounded-lg">
+          <Suspense>
+            <div className="flex justify-between">
+              <h1 className="text-2xl font-semibold">Inventory</h1>
+              <AddItemDialog />
+            </div>
+          </Suspense>
           <Suspense fallback={<div>Loading inventory...</div>}>
             <InventoryList searchParamsPromise={searchParams} />
           </Suspense>

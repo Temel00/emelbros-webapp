@@ -1,8 +1,7 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState, useEffect, type FormEvent } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import Link from "next/link";
 import { updateRecipe, deleteRecipe, type RecipeActionState } from "../actions";
 import {
   addIngredient,
@@ -60,6 +59,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
+import Link from "next/link";
 
 const initialState: RecipeActionState = { ok: true };
 const initialActionState: ActionState = { ok: true };
@@ -115,36 +115,32 @@ export function UpdateRecipeForm({
       <form action={formAction} className="flex items-center gap-6">
         <div className="flex flex-col gap-2">
           <div>
-            <input type="hidden" name="id" value={id} />
-            <input
-              name="name"
-              defaultValue={currentName}
-              className="border px-2 py-1 rounded text-xl"
-            />
+            <Input type="hidden" name="id" value={id} />
+            <Input name="name" defaultValue={currentName} className="text-xl" />
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center justify-start">
               <label htmlFor="prep_minutes">Prep:</label>
-              <input
+              <Input
                 id="prep_minutes"
                 name="prep_minutes"
                 defaultValue={prepMinutes}
                 type="number"
                 min={0}
                 onChange={(e) => setPrepMinutes(Number(e.target.value))}
-                className="border px-2 py-1 rounded w-20"
+                className="w-20"
               />
             </div>
             <div className="flex items-center justify-start">
               <label htmlFor="cook_minutes">Cook:</label>
-              <input
+              <Input
                 id="cook_minutes"
                 name="cook_minutes"
                 defaultValue={cookMinutes}
                 type="number"
                 min={0}
                 onChange={(e) => setCookMinutes(Number(e.target.value))}
-                className="border px-2 py-1 rounded w-20"
+                className="w-20"
               />
             </div>
             <div>
@@ -152,15 +148,11 @@ export function UpdateRecipeForm({
             </div>
           </div>
         </div>
-        <button
-          type="submit"
-          className="border px-3 py-1 rounded"
-          disabled={pending}
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Saving..." : "Save"}
-        </button>
+        </Button>
         {!state.ok && (
-          <span className="text-red-600 text-sm">{state.error}</span>
+          <span className="text-destructive text-sm">{state.error}</span>
         )}
       </form>
       <EditGear
@@ -174,9 +166,11 @@ export function UpdateRecipeForm({
     <div className="flex justify-between items-center">
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
-          <Link href="/dashboard/meal-planning/recipes">
-            <BackArrow className="w-5 h-5 hover:text-primary" />
-          </Link>
+          <Button variant={"ghost"}>
+            <Link href="/dashboard/meal-planning/recipes">
+              <BackArrow className="w-5 h-5 hover:text-primary" />
+            </Link>
+          </Button>
           <h1 className="text-2xl font-semibold">{currentName}</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -195,13 +189,19 @@ export function UpdateRecipeForm({
   );
 }
 
-export function DeleteRecipeForm({ id, recipeName }: { id: UUID; recipeName: string }) {
+export function DeleteRecipeForm({
+  id,
+  recipeName,
+}: {
+  id: UUID;
+  recipeName: string;
+}) {
   const [state, formAction, pending] = useActionState(
     deleteRecipe,
     initialState,
   );
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     const confirmed = window.confirm(
       `Are you sure you want to delete "${recipeName}"? This will permanently remove the recipe, all its ingredients, and all instructions. This action cannot be undone.`,
     );
@@ -212,8 +212,12 @@ export function DeleteRecipeForm({ id, recipeName }: { id: UUID; recipeName: str
 
   return (
     <div className="mt-8 pt-6 border-t border-destructive/20">
-      <form action={formAction} onSubmit={handleSubmit} className="flex flex-col items-start gap-2">
-        <input type="hidden" name="id" value={id} />
+      <form
+        action={formAction}
+        onSubmit={handleSubmit}
+        className="flex flex-col items-start gap-2"
+      >
+        <Input type="hidden" name="id" value={id} />
         <Button
           type="submit"
           variant="destructive"
@@ -223,7 +227,9 @@ export function DeleteRecipeForm({ id, recipeName }: { id: UUID; recipeName: str
           <Trash2 className="w-4 h-4 mr-2" />
           {pending ? "Deleting..." : "Delete Recipe"}
         </Button>
-        {!state.ok && <span className="text-red-600 text-sm">{state.error}</span>}
+        {!state.ok && (
+          <span className="text-destructive text-sm">{state.error}</span>
+        )}
       </form>
     </div>
   );
@@ -405,7 +411,7 @@ function IngredientRow({
       ) / 100
     : null;
 
-  const handleDelete = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleDelete = (event: FormEvent<HTMLFormElement>) => {
     const confirmed = window.confirm(
       `Remove ${ing.inventory.name} from this recipe?`,
     );
@@ -420,11 +426,11 @@ function IngredientRow({
         <td className="p-3 border-r">{ing.inventory.name}</td>
         <td colSpan={3} className="p-2">
           <form action={formAction} className="flex items-center gap-2">
-            <input type="hidden" name="id" value={ing.id} />
+            <Input type="hidden" name="id" value={ing.id} />
             <Button type="submit" size="sm" disabled={pending}>
               {pending ? "..." : "Save"}
             </Button>
-            <input type="hidden" name="recipe_id" value={recipeId} />
+            <Input type="hidden" name="recipe_id" value={recipeId} />
             <Input
               name="amount"
               type="number"
@@ -434,7 +440,7 @@ function IngredientRow({
               placeholder="Amount"
               className="w-20"
             />
-            <input type="hidden" name="unit" value={unit} />
+            <Input type="hidden" name="unit" value={unit} />
             <UnitSwitcher currentVal={unit} onValueChange={setUnit} size="sm" />
             {/* <Input
               name="note"
@@ -454,18 +460,18 @@ function IngredientRow({
             </Button>
           </form>
           {!state.ok && (
-            <span className="text-red-600 text-xs">{state.error}</span>
+            <span className="text-destructive text-xs">{state.error}</span>
           )}
         </td>
         <td className="p-2">
           <form action={deleteFormAction} onSubmit={handleDelete}>
-            <input type="hidden" name="id" value={ing.id} />
-            <input type="hidden" name="recipe_id" value={recipeId} />
+            <Input type="hidden" name="id" value={ing.id} />
+            <Input type="hidden" name="recipe_id" value={recipeId} />
             <Button
               type="submit"
               variant="ghost"
               size="sm"
-              className="text-red-600"
+              className="text-destructive"
               disabled={deletePending}
             >
               <Trash2 className="w-4 h-4" />
@@ -478,8 +484,8 @@ function IngredientRow({
 
   return (
     <tr
-      className={`border-t ${remainder !== null && remainder < 0 ? "bg-red-200" : ""} ${
-        isHighlighted ? "animate-pulse bg-yellow-100 dark:bg-yellow-900/30" : ""
+      className={`border-t ${remainder !== null && remainder < 0 ? "bg-destructive/10" : ""} ${
+        isHighlighted ? "animate-pulse bg-secondary/20" : ""
       }`}
     >
       <td className="p-3 border-r">{ing.inventory.name}</td>
@@ -493,10 +499,10 @@ function IngredientRow({
       <td
         className={`text-right p-3 border-l font-medium ${
           remainder !== null && remainder < 0
-            ? "text-red-600"
+            ? "text-destructive"
             : remainder !== null && remainder > 0.5
-              ? "text-green-600"
-              : "text-yellow-600"
+              ? "text-tertiary"
+              : "text-secondary"
         }`}
       >
         {remainder !== null
@@ -547,7 +553,7 @@ function AddIngredientForm({
   const handleSelect = (id: string, itemUnit: string | null) => {
     // Check if ingredient already exists in recipe
     const isDuplicate = existingIngredients.some(
-      (ing) => ing.inventory.id === id
+      (ing) => ing.inventory.id === id,
     );
 
     if (isDuplicate) {
@@ -564,9 +570,9 @@ function AddIngredientForm({
 
   return (
     <form action={formAction} className="flex items-end gap-3 mt-4">
-      <input type="hidden" name="recipe_id" value={recipeId} />
-      <input type="hidden" name="inventory_id" value={selectedId} />
-      <input type="hidden" name="unit" value={unit} />
+      <Input type="hidden" name="recipe_id" value={recipeId} />
+      <Input type="hidden" name="inventory_id" value={selectedId} />
+      <Input type="hidden" name="unit" value={unit} />
 
       <div className="flex flex-col gap-1">
         <label className="text-sm text-muted-foreground">Ingredient</label>
@@ -596,7 +602,9 @@ function AddIngredientForm({
         {pending ? "Adding..." : "Add Ingredient"}
       </Button>
 
-      {!state.ok && <span className="text-red-600 text-sm">{state.error}</span>}
+      {!state.ok && (
+        <span className="text-destructive text-sm">{state.error}</span>
+      )}
     </form>
   );
 }
@@ -753,7 +761,7 @@ function SortableInstructionRow({
     }
   }, [pending, state.ok, wasPending]);
 
-  const handleDelete = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleDelete = (event: FormEvent<HTMLFormElement>) => {
     const confirmed = window.confirm("Delete this instruction step?");
     if (!confirmed) {
       event.preventDefault();
@@ -771,8 +779,8 @@ function SortableInstructionRow({
           {displayNumber}
         </span>
         <form action={formAction} className="flex-1 space-y-2">
-          <input type="hidden" name="id" value={instruction.id} />
-          <input type="hidden" name="recipe_id" value={recipeId} />
+          <Input type="hidden" name="id" value={instruction.id} />
+          <Input type="hidden" name="recipe_id" value={recipeId} />
           <textarea
             name="text"
             value={text}
@@ -801,7 +809,7 @@ function SortableInstructionRow({
             </Button>
           </div>
           {!state.ok && (
-            <span className="text-red-600 text-xs">{state.error}</span>
+            <span className="text-destructive text-xs">{state.error}</span>
           )}
         </form>
       </li>
@@ -814,14 +822,14 @@ function SortableInstructionRow({
       style={style}
       className="flex gap-3 p-3 border rounded-lg bg-background group"
     >
-      <button
+      <Button
         type="button"
         className="cursor-grab active:cursor-grabbing touch-none"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="w-5 h-5 text-muted-foreground" />
-      </button>
+      </Button>
       <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
         {displayNumber}
       </span>
@@ -838,13 +846,13 @@ function SortableInstructionRow({
           <Pencil className="w-4 h-4" />
         </Button>
         <form action={deleteFormAction} onSubmit={handleDelete}>
-          <input type="hidden" name="id" value={instruction.id} />
-          <input type="hidden" name="recipe_id" value={recipeId} />
+          <Input type="hidden" name="id" value={instruction.id} />
+          <Input type="hidden" name="recipe_id" value={recipeId} />
           <Button
             type="submit"
             variant="ghost"
             size="sm"
-            className="text-red-600"
+            className="text-destructive"
             disabled={deletePending}
           >
             <Trash2 className="w-4 h-4" />
@@ -877,7 +885,7 @@ function AddInstructionForm({ recipeId }: { recipeId: UUID }) {
   return (
     <form action={formAction} className="space-y-3 mt-4 p-4 border rounded-lg">
       <h3 className="font-medium">Add New Step</h3>
-      <input type="hidden" name="recipe_id" value={recipeId} />
+      <Input type="hidden" name="recipe_id" value={recipeId} />
       <textarea
         name="text"
         value={text}
@@ -898,7 +906,7 @@ function AddInstructionForm({ recipeId }: { recipeId: UUID }) {
           {pending ? "Adding..." : "Add Step"}
         </Button>
         {!state.ok && (
-          <span className="text-red-600 text-sm">{state.error}</span>
+          <span className="text-destructive text-sm">{state.error}</span>
         )}
       </div>
     </form>

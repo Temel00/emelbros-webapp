@@ -11,17 +11,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
+import { Input } from "./ui/input";
 
-type UnitCategory = "weight" | "volume" | "count" | "all";
+export type UnitCategory = "weight" | "volume" | "count" | "all";
 
-interface Unit {
+export interface Unit {
   value: string;
   label: string;
   category: UnitCategory;
 }
 
 // Comprehensive unit definitions organized by category
-const UNITS: Unit[] = [
+export const UNITS: Unit[] = [
   // Weight units
   { value: "mg", label: "mg (milligram)", category: "weight" },
   { value: "g", label: "g (gram)", category: "weight" },
@@ -55,7 +56,7 @@ interface UnitSwitcherProps {
   name?: string;
 }
 
-const UnitSwitcher = ({
+export const UnitSwitcher = ({
   currentVal = "g",
   category = "all",
   onValueChange,
@@ -91,8 +92,8 @@ const UnitSwitcher = ({
   }
 
   return (
-    <div className="border rounded">
-      {name && <input type="hidden" name={name} value={value} />}
+    <div>
+      {name && <Input type="hidden" name={name} value={value} />}
       <DropdownMenu>
         <DropdownMenuTrigger className="h-8 w-20" asChild>
           <Button variant={variant} size={size}>
@@ -146,7 +147,3 @@ const UnitSwitcher = ({
     </div>
   );
 };
-
-export { UnitSwitcher };
-export type { UnitCategory, Unit };
-export { UNITS };
