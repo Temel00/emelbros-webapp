@@ -10,7 +10,7 @@ export type RecipeActionState = {
   error?: string;
 };
 
-type Recipe = {
+export type Recipe = {
   id: UUID;
   name: string;
   prep_minutes: number;

@@ -1,4 +1,4 @@
-import ColorSwatch from "@/components/color-swatch";
+import { ColorSwatch } from "@/components/color-swatch";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

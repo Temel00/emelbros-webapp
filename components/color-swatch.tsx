@@ -4,7 +4,7 @@ interface ColorSwatchProps {
 
 type colorMap = Record<string, string>;
 
-function ColorSwatch({ color }: ColorSwatchProps) {
+export function ColorSwatch({ color }: ColorSwatchProps) {
   const colorVariants: colorMap = {
     background: "bg-background text-foreground",
     foreground: "bg-foreground text-background",
@@ -33,5 +33,3 @@ function ColorSwatch({ color }: ColorSwatchProps) {
     </div>
   );
 }
-
-export default ColorSwatch;

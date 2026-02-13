@@ -2,24 +2,11 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { RecipeFormToggle } from "./widgets";
-import type { UUID } from "crypto";
-import BreadcrumbNav from "@/components/breadcrumb-nav";
+import { Recipe } from "./actions";
+import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-type Recipe = {
-  id: UUID;
-  name: string;
-  prep_minutes: number;
-  cook_minutes: number;
-  total_minutes: number;
-};
 
 async function RecipesList() {
   const supabase = await createClient();
@@ -29,7 +16,8 @@ async function RecipesList() {
     .select("id, name, prep_minutes, cook_minutes, total_minutes")
     .order("name", { ascending: true });
 
-  if (error) return <div className="text-red-600">Error: {error.message}</div>;
+  if (error)
+    return <div className="text-destructive">Error: {error.message}</div>;
 
   const recipes = (data || []) as Recipe[];
 
@@ -37,8 +25,6 @@ async function RecipesList() {
 
   return (
     <div className="space-y-4">
-      <RecipeFormToggle />
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {recipes.map((recipe) => (
           <Card key={recipe.id} className="flex flex-col">
@@ -66,7 +52,12 @@ export default function RecipesPage() {
         <PageHeader />
         <BreadcrumbNav />
         <section className="w-full max-w-5xl p-5 space-y-4">
-          <h1 className="text-2xl font-semibold">Recipes</h1>
+          <Suspense>
+            <div className="flex justify-between">
+              <h1 className="text-2xl font-semibold">Recipes</h1>
+              <RecipeFormToggle />
+            </div>
+          </Suspense>
           <Suspense fallback={<div>Loading recipes...</div>}>
             <RecipesList />
           </Suspense>

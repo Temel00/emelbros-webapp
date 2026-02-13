@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export default function BreadcrumbNav() {
-  const pathname: string = usePathname();
+export function BreadcrumbNav() {
+  const pathname = usePathname();
   const paths = pathname.split("/").filter((path) => path !== "");
 
   const breadcrumbs = [
