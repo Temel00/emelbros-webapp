@@ -15,6 +15,8 @@ export const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/80",
         outline: "text-foreground",
+        ghost: "text-xs",
+        ghostAccent: "py-2 bg-secondary/40",
       },
     },
     defaultVariants: {

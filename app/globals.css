@@ -7,6 +7,7 @@
 @theme {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
+  --color-header: hsl(var(--header));
 
   --color-card: hsl(var(--card));
   --color-card-foreground: hsl(var(--card-foreground));
@@ -60,10 +61,11 @@
   :root {
     --background: 186 100% 98%;
     --foreground: 64 100% 3%;
+    --header: 205 45% 15%;
     --card: 202 14% 85%;
     --card-foreground: 186 100% 98%;
-    --popover: 205 45% 15%;
-    --popover-foreground: 186 100% 98%;
+    --popover: 186 100% 98%;
+    --popover-foreground: 64 100% 3%;
     --primary: 346 84% 61%;
     --primary-foreground: 186 100% 98%;
     --secondary: 42 100% 70%;
@@ -82,13 +84,14 @@
   .dark {
     --background: 64 100% 3%;
     --foreground: 186 100% 98%;
-    --card: 202 14% 85%;
+    --header: 205 45% 15%;
+    --card: 202 14% 30%;
     --card-foreground: 186 100% 98%;
-    --popover: 205 45% 15%;
+    --popover: 64 100% 3%;
     --popover-foreground: 186 100% 98%;
-    --primary: 346 84% 61%;
+    --primary: 346 74% 56%;
     --primary-foreground: 186 100% 98%;
-    --secondary: 42 100% 70%;
+    --secondary: 42 80% 50%;
     --secondary-foreground: 186 100% 98%;
     --tertiary: 164 95% 43%;
     --tertiary-foreground: 186 100% 98%;
@@ -109,5 +112,27 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .border-split-gradient {
+    position: relative;
+    padding: 2px;
+  }
+
+  .border-split-gradient::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 90%;
+    height: 1px;
+    background: linear-gradient(
+      0.25turn,
+      transparent,
+      hsl(var(--background)),
+      transparent
+    );
   }
 }

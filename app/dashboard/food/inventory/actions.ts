@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import type { PostgrestError } from "@supabase/supabase-js";
-import { UUID } from "crypto";
+import type { UUID } from "crypto";
 import { getUnitsForCategory } from "@/lib/unit-conversions";
 import type { UnitCategory } from "@/components/unit-switcher";
 
@@ -116,7 +116,15 @@ export async function addInventoryItem(
 
   const { error: insertError } = await supabase
     .from("inventory")
-    .insert([{ name, on_hand_qty: quantity, unit, unit_category: unitCategory, location } satisfies Partial<InventoryItem>]);
+    .insert([
+      {
+        name,
+        on_hand_qty: quantity,
+        unit,
+        unit_category: unitCategory,
+        location,
+      } satisfies Partial<InventoryItem>,
+    ]);
 
   if (insertError) {
     // Friendly handling of common cases
@@ -137,7 +145,7 @@ export async function addInventoryItem(
     return { ok: false, error: insertError.message };
   }
 
-  revalidatePath("/dashboard/meal-planning/inventory");
+  revalidatePath("/dashboard/food/inventory");
   return { ok: true };
 }
 
@@ -181,9 +189,7 @@ export async function updateInventoryItem(
   if (formData.has("location")) {
     const locRaw = String(formData.get("location") || "").trim();
     next.location = (
-      ["pantry", "fridge", "freezer", "other"].includes(locRaw)
-        ? locRaw
-        : null
+      ["pantry", "fridge", "freezer", "other"].includes(locRaw) ? locRaw : null
     ) as InventoryItem["location"];
   }
 
@@ -197,7 +203,7 @@ export async function updateInventoryItem(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard/meal-planning/inventory");
+  revalidatePath("/dashboard/food/inventory");
   return { ok: true };
 }
 
@@ -219,6 +225,6 @@ export async function deleteInventoryItem(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard/meal-planning/inventory");
+  revalidatePath("/dashboard/food/inventory");
   return { ok: true };
 }

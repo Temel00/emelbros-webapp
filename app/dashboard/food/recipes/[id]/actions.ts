@@ -2,10 +2,40 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import type { UUID } from "crypto";
 
 export type ActionState = {
   ok: boolean;
   error?: string;
+};
+
+export type Instruction = {
+  id: UUID;
+  step_number: number;
+  text: string;
+  detail: string | null;
+};
+
+export type RecipeIngredient = {
+  id: UUID;
+  amount: number | null;
+  unit: string | null;
+  first_used_step: number | null;
+  used_in_steps: number[];
+  note: string | null;
+  position: number | null;
+  inventory: {
+    id: UUID;
+    name: string;
+    on_hand_qty: number;
+    unit: string | null;
+  };
+};
+
+export type InventoryItem = {
+  id: UUID;
+  name: string;
+  unit: string | null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,9 +69,10 @@ export async function addIngredient(
     .order("position", { ascending: false })
     .limit(1);
 
-  const nextPosition = existing && existing.length > 0 && existing[0].position != null
-    ? existing[0].position + 1
-    : 1;
+  const nextPosition =
+    existing && existing.length > 0 && existing[0].position != null
+      ? existing[0].position + 1
+      : 1;
 
   const { error } = await supabase.from("recipe_ingredients").insert({
     recipe_id: recipeId,
@@ -56,7 +87,7 @@ export async function addIngredient(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath(`/dashboard/meal-planning/recipes/${recipeId}`);
+  revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
 }
 
@@ -99,7 +130,7 @@ export async function updateIngredient(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath(`/dashboard/meal-planning/recipes/${recipeId}`);
+  revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
 }
 
@@ -125,7 +156,7 @@ export async function deleteIngredient(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath(`/dashboard/meal-planning/recipes/${recipeId}`);
+  revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
 }
 
@@ -158,9 +189,8 @@ export async function addInstruction(
     .order("step_number", { ascending: false })
     .limit(1);
 
-  const nextStep = existing && existing.length > 0
-    ? existing[0].step_number + 1
-    : 1;
+  const nextStep =
+    existing && existing.length > 0 ? existing[0].step_number + 1 : 1;
 
   const { error } = await supabase.from("instructions").insert({
     recipe_id: recipeId,
@@ -173,7 +203,7 @@ export async function addInstruction(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath(`/dashboard/meal-planning/recipes/${recipeId}`);
+  revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
 }
 
@@ -216,7 +246,7 @@ export async function updateInstruction(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath(`/dashboard/meal-planning/recipes/${recipeId}`);
+  revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
 }
 
@@ -271,7 +301,7 @@ export async function deleteInstruction(
     }
   }
 
-  revalidatePath(`/dashboard/meal-planning/recipes/${recipeId}`);
+  revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
 }
 
@@ -300,6 +330,6 @@ export async function reorderInstructions(
     }
   }
 
-  revalidatePath(`/dashboard/meal-planning/recipes/${recipeId}`);
+  revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
 }
