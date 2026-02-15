@@ -50,7 +50,7 @@ export async function addRecipe(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard/meal-planning/recipes");
+  revalidatePath("/dashboard/food/recipes");
   return { ok: true };
 }
 
@@ -93,8 +93,8 @@ export async function updateRecipe(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard/meal-planning/recipes");
-  revalidatePath(`/dashboard/meal-planning/recipes/${id}`);
+  revalidatePath("/dashboard/food/recipes");
+  revalidatePath(`/dashboard/food/recipes/${id}`);
   return { ok: true };
 }
 
@@ -113,7 +113,10 @@ export async function deleteRecipe(
     .eq("recipe_id", id);
 
   if (instrError) {
-    return { ok: false, error: `Failed to delete instructions: ${instrError.message}` };
+    return {
+      ok: false,
+      error: `Failed to delete instructions: ${instrError.message}`,
+    };
   }
 
   const { error: ingredError } = await supabase
@@ -122,7 +125,10 @@ export async function deleteRecipe(
     .eq("recipe_id", id);
 
   if (ingredError) {
-    return { ok: false, error: `Failed to delete ingredients: ${ingredError.message}` };
+    return {
+      ok: false,
+      error: `Failed to delete ingredients: ${ingredError.message}`,
+    };
   }
 
   const { error } = await supabase.from("recipes").delete().eq("id", id);
@@ -131,6 +137,6 @@ export async function deleteRecipe(
     return { ok: false, error: error.message };
   }
 
-  revalidatePath("/dashboard/meal-planning/recipes");
-  redirect("/dashboard/meal-planning/recipes");
+  revalidatePath("/dashboard/food/recipes");
+  redirect("/dashboard/food/recipes");
 }

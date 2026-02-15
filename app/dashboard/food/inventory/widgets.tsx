@@ -19,7 +19,6 @@ import {
 import { UnitSwitcher } from "@/components/unit-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// import { EditGear } from "@/components/ui/edit-gear";
 import {
   Dialog,
   DialogClose,
@@ -37,6 +36,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import {
   Trash2,
   Loader,
   Plus,
@@ -48,13 +54,6 @@ import {
   Snowflake,
   BadgeHelp,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 
 const initialState: InventoryActionState = { ok: true };
 
@@ -135,7 +134,7 @@ function IconToggle<T extends string>({
           return (
             <Tooltip key={opt.value}>
               <TooltipTrigger asChild>
-                <Button
+                <button
                   type="button"
                   onClick={() => onChange(isSelected ? null : opt.value)}
                   className={cn(
@@ -146,7 +145,7 @@ function IconToggle<T extends string>({
                   )}
                 >
                   <Icon className="w-4 h-4" />
-                </Button>
+                </button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>{opt.label}</p>
@@ -320,7 +319,6 @@ function InventoryFormContent({
             ) : (
               <Trash2 className="w-4 h-4" />
             )}
-            Delete
           </Button>
         )}
         <div className="flex gap-2">
@@ -362,7 +360,6 @@ function InventoryItemDialog({
           mode={mode}
           item={item}
           onSuccess={(itemName) => {
-            console.log(`onSuccess: ${itemName}`);
             onOpenChange(false);
             if (itemName) onItemSaved?.(itemName);
           }}
@@ -399,7 +396,6 @@ export function AddItemDialog() {
   }, [successMessage, searchParams, router, pathname]);
 
   const handleItemSaved = (name: string) => {
-    console.log("triggered handleItemSaved");
     const params = new URLSearchParams(searchParams.toString());
     params.set("success", `${name} added!`);
     router.push(`${pathname}?${params.toString()}`);
@@ -449,37 +445,29 @@ export function InventoryItemRow({ item }: { item: InventoryItem }) {
   return (
     <>
       <div
-        className="bg-gradient-to-r from-background from-5% via-card via-50% to-background to-95% cursor-pointer py-[.5px] hover:bg-none"
+        className="flex h-6 md:h-10 items-center gap-3 text-xs md:text-lg hover:bg-primary/10 px-2 rounded-lg border-split-gradient"
         onClick={handleRowClick}
       >
-        <div className="flex h-6 md:h-10 items-center gap-3 text-xs md:text-lg bg-background hover:bg-primary/10 px-2 rounded-lg">
-          <div className="w-5 flex justify-center">
-            {item.location && LOCATION_ICONS[item.location] && (
-              <IconWithTooltip
-                icon={LOCATION_ICONS[item.location].icon}
-                label={LOCATION_ICONS[item.location].label}
-              />
-            )}
-          </div>
-          <p className="flex-1">{item.name}</p>
-          <p className="w-8 text-right">
-            {typeof item.on_hand_qty === "number"
-              ? `${item.on_hand_qty}`
-              : null}
-          </p>
-          <p className="w-8">{item.unit}</p>
-          <div className="w-5 justify-center">
-            {item.unit_category && UNIT_CATEGORY_ICONS[item.unit_category] && (
-              <IconWithTooltip
-                icon={UNIT_CATEGORY_ICONS[item.unit_category].icon}
-                label={UNIT_CATEGORY_ICONS[item.unit_category].label}
-              />
-            )}
-          </div>
-          {/* <EditGear
-          onClick={() => setEditOpen(true)}
-          className="w-3 md:w-4 hover:text-primary"
-        /> */}
+        <div className="w-5 flex justify-center">
+          {item.location && LOCATION_ICONS[item.location] && (
+            <IconWithTooltip
+              icon={LOCATION_ICONS[item.location].icon}
+              label={LOCATION_ICONS[item.location].label}
+            />
+          )}
+        </div>
+        <p className="flex-1">{item.name}</p>
+        <p className="w-8 text-right">
+          {typeof item.on_hand_qty === "number" ? `${item.on_hand_qty}` : null}
+        </p>
+        <p className="w-8">{item.unit}</p>
+        <div className="w-5 justify-center">
+          {item.unit_category && UNIT_CATEGORY_ICONS[item.unit_category] && (
+            <IconWithTooltip
+              icon={UNIT_CATEGORY_ICONS[item.unit_category].icon}
+              label={UNIT_CATEGORY_ICONS[item.unit_category].label}
+            />
+          )}
         </div>
       </div>
       <InventoryItemDialog

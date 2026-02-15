@@ -12,7 +12,7 @@ export default function DashboardPage() {
         <section className="w-full max-w-5xl p-5 space-y-4">
           <h1 className="text-2xl font-semibold">Dashboard</h1>
           <Button asChild variant="default" size="lg">
-            <Link href="/dashboard/meal-planning">Meal Planning</Link>
+            <Link href="/dashboard/food">Food</Link>
           </Button>
         </section>
       </div>

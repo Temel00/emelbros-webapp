@@ -1,6 +1,7 @@
 export function Cancel(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 121.31 122.876" aria-hidden="true" {...props}>
+      <title>cancel</title>
       <path
         fill="currentColor"
         fillRule="evenodd"

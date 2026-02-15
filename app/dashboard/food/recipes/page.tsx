@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { RecipeFormToggle } from "./widgets";
-import { Recipe } from "./actions";
+import { AddRecipeButton } from "./widgets";
+import type { Recipe } from "./actions";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -28,14 +28,18 @@ async function RecipesList() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {recipes.map((recipe) => (
           <Card key={recipe.id} className="flex flex-col">
-            <Link href={`/dashboard/meal-planning/recipes/${recipe.id}`}>
+            <Link href={`/dashboard/food/recipes/${recipe.id}`}>
               <CardHeader>
                 <CardTitle>{recipe.name}</CardTitle>
               </CardHeader>
-              <CardContent className="flex gap-2 flex-wrap">
-                <Badge variant="secondary">Prep: {recipe.prep_minutes}m</Badge>
-                <Badge variant="outline">Cook: {recipe.cook_minutes}m</Badge>
-                <Badge>Total: {recipe.total_minutes}m</Badge>
+              <CardContent className="flex items-end justify-between">
+                <div className="flex gap-1">
+                  <Badge variant="ghost">Prep: {recipe.prep_minutes}m</Badge>
+                  <Badge variant="ghost">Cook: {recipe.cook_minutes}m</Badge>
+                </div>
+                <Badge variant="ghostAccent">
+                  Total: {recipe.total_minutes}m
+                </Badge>
               </CardContent>
             </Link>
           </Card>
@@ -52,12 +56,10 @@ export default function RecipesPage() {
         <PageHeader />
         <BreadcrumbNav />
         <section className="w-full max-w-5xl p-5 space-y-4">
-          <Suspense>
-            <div className="flex justify-between">
-              <h1 className="text-2xl font-semibold">Recipes</h1>
-              <RecipeFormToggle />
-            </div>
-          </Suspense>
+          <div className="flex justify-between">
+            <h1 className="text-2xl font-semibold">Recipes</h1>
+            <AddRecipeButton />
+          </div>
           <Suspense fallback={<div>Loading recipes...</div>}>
             <RecipesList />
           </Suspense>

@@ -13,10 +13,10 @@ export default function MealPlanningPage() {
           <h1 className="text-2xl font-semibold">Meal Planning</h1>
           <div className="flex gap-4">
             <Button asChild variant="default" size="lg">
-              <Link href="/dashboard/meal-planning/inventory">Inventory</Link>
+              <Link href="/dashboard/food/inventory">Inventory</Link>
             </Button>
             <Button asChild variant="secondary" size="lg">
-              <Link href="/dashboard/meal-planning/recipes">Recipes</Link>
+              <Link href="/dashboard/food/recipes">Recipes</Link>
             </Button>
           </div>
         </section>
