@@ -285,15 +285,15 @@ export async function fetchRecipes(
 
       // Process tag filter results
       if (tagIds.length > 0) {
-        const recipeTags = results[0].data;
-        const tagRecipeIds = [...new Set(recipeTags?.map((rt: { recipe_id: string }) => rt.recipe_id) || [])];
+        const recipeTags = results[0].data as { recipe_id: string }[] | null;
+        const tagRecipeIds = [...new Set(recipeTags?.map((rt) => rt.recipe_id) || [])];
         recipeIdsFilter = tagRecipeIds;
       }
 
       // Process tool filter results
       if (toolIds.length > 0) {
-        const instTools = results[tagIds.length > 0 ? 1 : 0].data;
-        const instructionIds = [...new Set(instTools?.map((it: { instruction_id: string }) => it.instruction_id) || [])];
+        const instTools = results[tagIds.length > 0 ? 1 : 0].data as { instruction_id: string }[] | null;
+        const instructionIds = [...new Set(instTools?.map((it) => it.instruction_id) || [])];
 
         if (instructionIds.length > 0) {
           // Fetch recipe IDs from instructions
