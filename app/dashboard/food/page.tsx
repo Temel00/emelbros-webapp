@@ -18,6 +18,9 @@ export default function MealPlanningPage() {
             <Button asChild variant="secondary" size="lg">
               <Link href="/dashboard/food/recipes">Recipes</Link>
             </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/dashboard/food/tools">Tools</Link>
+            </Button>
           </div>
         </section>
       </div>
