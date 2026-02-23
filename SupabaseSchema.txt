@@ -44,3 +44,36 @@ CREATE TABLE public.recipes (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT recipes_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.tools (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  location text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT tools_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.instruction_tools (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  instruction_id uuid NOT NULL,
+  tool_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT instruction_tools_pkey PRIMARY KEY (id),
+  CONSTRAINT instruction_tools_instruction_id_fkey FOREIGN KEY (instruction_id) REFERENCES public.instructions(id) ON DELETE CASCADE,
+  CONSTRAINT instruction_tools_tool_id_fkey FOREIGN KEY (tool_id) REFERENCES public.tools(id),
+  CONSTRAINT instruction_tools_instruction_id_tool_id_key UNIQUE (instruction_id, tool_id)
+);
+CREATE TABLE public.tags (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL UNIQUE,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT tags_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.recipe_tags (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  recipe_id uuid NOT NULL,
+  tag_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT recipe_tags_pkey PRIMARY KEY (id),
+  CONSTRAINT recipe_tags_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id) ON DELETE CASCADE,
+  CONSTRAINT recipe_tags_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.tags(id),
+  CONSTRAINT recipe_tags_recipe_id_tag_id_key UNIQUE (recipe_id, tag_id)
+);

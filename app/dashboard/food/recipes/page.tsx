@@ -1,55 +1,77 @@
 import { Suspense } from "react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { AddRecipeButton } from "./widgets";
-import type { Recipe } from "./actions";
+import { AddRecipeButton, InfiniteRecipesList, RecipeSearchFilter } from "./widgets";
+import { fetchRecipes, type Tag } from "./actions";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
-async function RecipesList() {
+type SearchParams = {
+  q?: string;
+  tags?: string;
+  tools?: string;
+  time?: string;
+};
+
+type Tool = {
+  id: string;
+  name: string;
+};
+
+async function RecipesListWithFilters({
+  searchParamsPromise,
+}: {
+  searchParamsPromise: Promise<SearchParams>;
+}) {
+  const searchParams = await searchParamsPromise;
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("recipes")
-    .select("id, name, prep_minutes, cook_minutes, total_minutes")
-    .order("name", { ascending: true });
+  // Parse URL params
+  const search = searchParams.q ?? "";
+  const tagIds = searchParams.tags
+    ? searchParams.tags.split(",").filter((id) => id.length > 0)
+    : [];
+  const toolIds = searchParams.tools
+    ? searchParams.tools.split(",").filter((id) => id.length > 0)
+    : [];
+  const timeRange = searchParams.time ? Number(searchParams.time) : null;
 
-  if (error)
-    return <div className="text-destructive">Error: {error.message}</div>;
+  // Fetch filter options and recipes in parallel
+  const [tagsResult, toolsResult, recipesResult] = await Promise.all([
+    supabase.from("tags").select("id, name, color").order("name"),
+    supabase.from("tools").select("id, name").order("name"),
+    fetchRecipes(0, 15, search, tagIds, toolIds, timeRange),
+  ]);
 
-  const recipes = (data || []) as Recipe[];
+  const allTags = (tagsResult.data || []) as Tag[];
+  const allTools = (toolsResult.data || []) as Tool[];
+  const { recipes, ok, hasMore } = recipesResult;
 
-  if (recipes.length === 0) return <div>No recipes found.</div>;
+  if (!ok) {
+    return <div className="text-destructive">Error loading recipes</div>;
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {recipes.map((recipe) => (
-          <Card key={recipe.id} className="flex flex-col">
-            <Link href={`/dashboard/food/recipes/${recipe.id}`}>
-              <CardHeader>
-                <CardTitle>{recipe.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-end justify-between">
-                <div className="flex gap-1">
-                  <Badge variant="ghost">Prep: {recipe.prep_minutes}m</Badge>
-                  <Badge variant="ghost">Cook: {recipe.cook_minutes}m</Badge>
-                </div>
-                <Badge variant="ghostAccent">
-                  Total: {recipe.total_minutes}m
-                </Badge>
-              </CardContent>
-            </Link>
-          </Card>
-        ))}
-      </div>
-    </div>
+    <>
+      <RecipeSearchFilter allTags={allTags} allTools={allTools} />
+      <InfiniteRecipesList
+        initialRecipes={recipes}
+        initialHasMore={hasMore}
+        search={search}
+        tagIds={tagIds}
+        toolIds={toolIds}
+        timeRange={timeRange}
+        allTags={allTags}
+        allTools={allTools}
+      />
+    </>
   );
 }
 
-export default function RecipesPage() {
+export default function RecipesPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   return (
     <main className="min-h-screen flex flex-col items-center">
       <div className="flex-1 w-full flex flex-col gap-4 items-center">
@@ -61,7 +83,7 @@ export default function RecipesPage() {
             <AddRecipeButton />
           </div>
           <Suspense fallback={<div>Loading recipes...</div>}>
-            <RecipesList />
+            <RecipesListWithFilters searchParamsPromise={searchParams} />
           </Suspense>
         </section>
       </div>

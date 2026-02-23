@@ -9,14 +9,13 @@ import {
 } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
-  addInventoryItem,
-  updateInventoryItem,
-  deleteInventoryItem,
-  fetchInventoryItems,
-  type InventoryActionState,
-  type InventoryItem,
+  addTool,
+  updateTool,
+  deleteTool,
+  fetchTools,
+  type ToolActionState,
+  type Tool,
 } from "./actions";
-import { UnitSwitcher } from "@/components/unit-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,176 +27,43 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import {
-  Trash2,
-  Loader,
-  Plus,
-  Weight,
-  FlaskConical,
-  Dice1,
-  Croissant,
-  Refrigerator,
-  Snowflake,
-  BadgeHelp,
-} from "lucide-react";
+import { Trash2, Loader, Plus, MapPin } from "lucide-react";
 
-const initialState: InventoryActionState = { ok: true };
+const initialState: ToolActionState = { ok: true };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Icon Constants
+// Tool Form Content (Add / Edit)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const UNIT_CATEGORY_ICONS = {
-  weight: { icon: Weight, label: "Weight" },
-  volume: { icon: FlaskConical, label: "Volume" },
-  count: { icon: Dice1, label: "Count" },
-} as const;
-
-const LOCATION_ICONS = {
-  pantry: { icon: Croissant, label: "Pantry" },
-  fridge: { icon: Refrigerator, label: "Fridge" },
-  freezer: { icon: Snowflake, label: "Freezer" },
-  other: { icon: BadgeHelp, label: "Other" },
-} as const;
-
-const UNIT_CATEGORY_OPTIONS = [
-  { value: "weight" as const, icon: Weight, label: "Weight" },
-  { value: "volume" as const, icon: FlaskConical, label: "Volume" },
-  { value: "count" as const, icon: Dice1, label: "Count" },
-];
-
-const LOCATION_OPTIONS = [
-  { value: "pantry" as const, icon: Croissant, label: "Pantry" },
-  { value: "fridge" as const, icon: Refrigerator, label: "Fridge" },
-  { value: "freezer" as const, icon: Snowflake, label: "Freezer" },
-  { value: "other" as const, icon: BadgeHelp, label: "Other" },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared UI Components
-// ─────────────────────────────────────────────────────────────────────────────
-
-function IconWithTooltip({
-  icon: Icon,
-  label,
-}: {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  label: string;
-}) {
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Icon className="w-3 md:w-4 text-muted-foreground" />
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{label}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
-function IconToggle<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: {
-    value: T;
-    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-    label: string;
-  }[];
-  value: T | null;
-  onChange: (value: T | null) => void;
-}) {
-  return (
-    <TooltipProvider>
-      <div className="flex flex-wrap gap-1">
-        {options.map((opt) => {
-          const Icon = opt.icon;
-          const isSelected = value === opt.value;
-          return (
-            <Tooltip key={opt.value}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => onChange(isSelected ? null : opt.value)}
-                  className={cn(
-                    "inline-flex items-center justify-center rounded-md border p-1.5 transition-colors",
-                    isSelected
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "border-input hover:bg-accent",
-                  )}
-                >
-                  <Icon className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{opt.label}</p>
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </div>
-    </TooltipProvider>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Inventory Item Dialog (Add / Edit)
-// ─────────────────────────────────────────────────────────────────────────────
-
-function InventoryFormContent({
+function ToolFormContent({
   mode,
   item,
   onSuccess,
   onDelete,
 }: {
   mode: "add" | "edit";
-  item?: InventoryItem;
-  onSuccess: (itemName?: string) => void;
-  onDelete?: (itemName: string) => void;
+  item?: Tool;
+  onSuccess: (toolName?: string) => void;
+  onDelete?: (toolName: string) => void;
 }) {
-  const action = mode === "add" ? addInventoryItem : updateInventoryItem;
+  const action = mode === "add" ? addTool : updateTool;
   const [state, formAction, pending] = useActionState(action, initialState);
   const nameRef = useRef<HTMLInputElement>(null);
   const hasSubmitted = useRef(false);
   const submittedNameRef = useRef<string>("");
-  const [unitCategory, setUnitCategory] = useState<
-    InventoryItem["unit_category"]
-  >(item?.unit_category ?? null);
-  const [location, setLocation] = useState<InventoryItem["location"]>(
-    item?.location ?? null,
-  );
   const [isDeleting, setIsDeleting] = useState(false);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
   const onDeleteRef = useRef(onDelete);
   onDeleteRef.current = onDelete;
 
-  // Wrap formAction to capture the submitted name
   const wrappedFormAction = (formData: FormData) => {
     const name = String(formData.get("name") || "").trim();
     submittedNameRef.current = name;
     return formAction(formData);
   };
 
-  // Close dialog on successful save
   useEffect(() => {
     if (pending) {
       hasSubmitted.current = true;
@@ -212,13 +78,13 @@ function InventoryFormContent({
   const handleDelete = async () => {
     if (!item) return;
     const confirmed = window.confirm(
-      "Are you sure you want to delete this item?",
+      "Are you sure you want to delete this tool?",
     );
     if (!confirmed) return;
     setIsDeleting(true);
     const fd = new FormData();
     fd.append("id", item.id);
-    const result = await deleteInventoryItem(initialState, fd);
+    const result = await deleteTool(initialState, fd);
     setIsDeleting(false);
     if (result.ok) {
       onSuccessRef.current();
@@ -229,24 +95,22 @@ function InventoryFormContent({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{mode === "add" ? "Add Item" : "Edit Item"}</DialogTitle>
+        <DialogTitle>{mode === "add" ? "Add Tool" : "Edit Tool"}</DialogTitle>
         <DialogDescription>
           {mode === "add"
-            ? "Add a new ingredient to your inventory."
+            ? "Add a new kitchen tool."
             : `Edit details for ${item?.name}.`}
         </DialogDescription>
       </DialogHeader>
 
       <form
-        id="inventory-form"
+        id="tool-form"
         action={wrappedFormAction}
         className="grid gap-4"
       >
         {mode === "edit" && item && (
           <Input type="hidden" name="id" value={item.id} />
         )}
-        <Input type="hidden" name="unit_category" value={unitCategory ?? ""} />
-        <Input type="hidden" name="location" value={location ?? ""} />
 
         <div className="grid gap-2">
           <label htmlFor="name" className="text-sm font-medium">
@@ -256,50 +120,22 @@ function InventoryFormContent({
             ref={nameRef}
             id="name"
             name="name"
-            placeholder="Ingredient name"
+            placeholder="Tool name"
             defaultValue={item?.name ?? ""}
             required
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-2">
-            <label htmlFor="quantity" className="text-sm font-medium">
-              Quantity
-            </label>
-            <Input
-              id="quantity"
-              name="quantity"
-              type="number"
-              step={0.1}
-              min={0}
-              placeholder="0"
-              defaultValue={item?.on_hand_qty ?? ""}
-            />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Unit</label>
-            <UnitSwitcher currentVal={item?.unit ?? "g"} name="unit" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Category</label>
-            <IconToggle
-              options={UNIT_CATEGORY_OPTIONS}
-              value={unitCategory}
-              onChange={setUnitCategory}
-            />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Location</label>
-            <IconToggle
-              options={LOCATION_OPTIONS}
-              value={location}
-              onChange={setLocation}
-            />
-          </div>
+        <div className="grid gap-2">
+          <label htmlFor="location" className="text-sm font-medium">
+            Location
+          </label>
+          <Input
+            id="location"
+            name="location"
+            placeholder="e.g., drawer 3, cabinet above stove"
+            defaultValue={item?.location ?? ""}
+          />
         </div>
 
         {!state.ok && <p className="text-sm text-destructive">{state.error}</p>}
@@ -327,7 +163,7 @@ function InventoryFormContent({
           </DialogClose>
           <Button
             type="submit"
-            form="inventory-form"
+            form="tool-form"
             disabled={pending || isDeleting}
           >
             {pending ? "Saving..." : mode === "add" ? "Add" : "Save"}
@@ -338,7 +174,7 @@ function InventoryFormContent({
   );
 }
 
-function InventoryItemDialog({
+function ToolItemDialog({
   mode,
   item,
   open,
@@ -347,7 +183,7 @@ function InventoryItemDialog({
   onItemDeleted,
 }: {
   mode: "add" | "edit";
-  item?: InventoryItem;
+  item?: Tool;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onItemSaved?: (name: string) => void;
@@ -356,16 +192,16 @@ function InventoryItemDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md border border-foreground">
-        <InventoryFormContent
+        <ToolFormContent
           mode={mode}
           item={item}
-          onSuccess={(itemName) => {
+          onSuccess={(toolName) => {
             onOpenChange(false);
-            if (itemName) onItemSaved?.(itemName);
+            if (toolName) onItemSaved?.(toolName);
           }}
-          onDelete={(itemName) => {
+          onDelete={(toolName) => {
             onOpenChange(false);
-            onItemDeleted?.(itemName);
+            onItemDeleted?.(toolName);
           }}
         />
       </DialogContent>
@@ -374,17 +210,16 @@ function InventoryItemDialog({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Add Item Dialog & Success Messages
+// Add Tool Dialog & Success Messages
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function AddItemDialog() {
+export function AddToolDialog() {
   const [open, setOpen] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const successMessage = searchParams.get("success");
 
-  // Clear success message after 3 seconds
   useEffect(() => {
     if (!successMessage) return;
     const timer = setTimeout(() => {
@@ -405,14 +240,14 @@ export function AddItemDialog() {
     <div className="flex items-center gap-3">
       <Button onClick={() => setOpen(true)}>
         <Plus className="w-4 h-4" />
-        Add Item
+        Add Tool
       </Button>
       {successMessage && (
         <p className="text-sm text-tertiary animate-in fade-in duration-300">
           {successMessage}
         </p>
       )}
-      <InventoryItemDialog
+      <ToolItemDialog
         mode="add"
         open={open}
         onOpenChange={setOpen}
@@ -423,10 +258,10 @@ export function AddItemDialog() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Inventory Item Row (Display + Edit Dialog)
+// Tool Item Row (Display + Edit Dialog)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function InventoryItemRow({ item }: { item: InventoryItem }) {
+export function ToolItemRow({ item }: { item: Tool }) {
   const [editOpen, setEditOpen] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -449,29 +284,16 @@ export function InventoryItemRow({ item }: { item: InventoryItem }) {
           className="flex h-6 md:h-10 items-center px-4 rounded-lg gap-2 text-xs md:text-lg hover:bg-primary/10"
           onClick={handleRowClick}
         >
-          {item.location && LOCATION_ICONS[item.location] && (
-            <IconWithTooltip
-              icon={LOCATION_ICONS[item.location].icon}
-              label={LOCATION_ICONS[item.location].label}
-            />
-          )}
           <p className="flex-1">{item.name}</p>
-          <p className="w-8 text-right">
-            {typeof item.on_hand_qty === "number"
-              ? `${item.on_hand_qty}`
-              : null}
-          </p>
-          <p className="w-8">{item.unit}</p>
-
-          {item.unit_category && UNIT_CATEGORY_ICONS[item.unit_category] && (
-            <IconWithTooltip
-              icon={UNIT_CATEGORY_ICONS[item.unit_category].icon}
-              label={UNIT_CATEGORY_ICONS[item.unit_category].label}
-            />
+          {item.location && (
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <MapPin className="w-3 md:w-4" />
+              <p className="text-xs md:text-sm">{item.location}</p>
+            </div>
           )}
         </div>
       </div>
-      <InventoryItemDialog
+      <ToolItemDialog
         mode="edit"
         item={item}
         open={editOpen}
@@ -483,25 +305,16 @@ export function InventoryItemRow({ item }: { item: InventoryItem }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Search and Filter Components
+// Search Filter
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CATEGORIES = [
-  { value: "all", label: "All Categories" },
-  { value: "weight", label: "Weight" },
-  { value: "volume", label: "Volume" },
-  { value: "count", label: "Count" },
-] as const;
-
-export function InventorySearchFilter() {
+export function ToolsSearchFilter() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const [searchValue, setSearchValue] = useState(searchParams.get("q") ?? "");
-  const category = searchParams.get("category") ?? "all";
 
-  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
@@ -517,16 +330,6 @@ export function InventorySearchFilter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchValue]);
 
-  const handleCategoryChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value !== "all") {
-      params.set("category", value);
-    } else {
-      params.delete("category");
-    }
-    router.push(`${pathname}?${params.toString()}`);
-  };
-
   return (
     <div className="flex gap-4 items-center">
       <Input
@@ -535,25 +338,6 @@ export function InventorySearchFilter() {
         onChange={(e) => setSearchValue(e.target.value)}
         className="max-w-sm"
       />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline">
-            {CATEGORIES.find((c) => c.value === category)?.label}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuRadioGroup
-            value={category}
-            onValueChange={handleCategoryChange}
-          >
-            {CATEGORIES.map((cat) => (
-              <DropdownMenuRadioItem key={cat.value} value={cat.value}>
-                {cat.label}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
@@ -562,22 +346,20 @@ export function InventorySearchFilter() {
 // Infinite Scroll
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function InfiniteInventoryList({
+export function InfiniteToolsList({
   initialItems,
   initialHasMore,
   totalItems: initialTotal,
   search,
-  category,
   itemsPerLoad,
 }: {
-  initialItems: InventoryItem[];
+  initialItems: Tool[];
   initialHasMore: boolean;
   totalItems: number;
   search: string;
-  category: string;
   itemsPerLoad: number;
 }) {
-  const [items, setItems] = useState<InventoryItem[]>(initialItems);
+  const [items, setItems] = useState<Tool[]>(initialItems);
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isLoading, setIsLoading] = useState(false);
   const [totalItems, setTotalItems] = useState(initialTotal);
@@ -586,7 +368,6 @@ export function InfiniteInventoryList({
   const isLoadingRef = useRef(false);
   const hasMoreRef = useRef(initialHasMore);
 
-  // Reset when server re-renders with new initial data (search/filter change)
   useEffect(() => {
     setItems(initialItems);
     currentLoad.current = 1;
@@ -603,26 +384,20 @@ export function InfiniteInventoryList({
     setIsLoading(true);
     try {
       const nextLoad = currentLoad.current + 1;
-      const result = await fetchInventoryItems(
-        nextLoad,
-        search,
-        category,
-        itemsPerLoad,
-      );
+      const result = await fetchTools(nextLoad, search, itemsPerLoad);
       setItems((prev) => [...prev, ...result.items]);
       currentLoad.current = nextLoad;
       setHasMore(result.hasMore);
       hasMoreRef.current = result.hasMore;
       setTotalItems(result.totalItems);
     } catch (error) {
-      console.error("Failed to load more items:", error);
+      console.error("Failed to load more tools:", error);
     } finally {
       isLoadingRef.current = false;
       setIsLoading(false);
     }
-  }, [search, category, itemsPerLoad]);
+  }, [search, itemsPerLoad]);
 
-  // Intersection Observer — triggers loadMore when sentinel enters viewport
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
@@ -643,10 +418,9 @@ export function InfiniteInventoryList({
   return (
     <div>
       {items.map((item) => (
-        <InventoryItemRow key={item.id} item={item} />
+        <ToolItemRow key={item.id} item={item} />
       ))}
 
-      {/* Sentinel element — triggers loading when scrolled into view */}
       <div ref={sentinelRef} className="h-1" />
 
       {isLoading && (
@@ -657,7 +431,7 @@ export function InfiniteInventoryList({
 
       {!hasMore && items.length > 0 && (
         <p className="text-center text-sm text-muted-foreground py-4">
-          Showing all {totalItems} items
+          Showing all {totalItems} tools
         </p>
       )}
     </div>

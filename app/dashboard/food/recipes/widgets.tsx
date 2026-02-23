@@ -1,13 +1,18 @@
 "use client";
 
-import { useActionState, useState, useEffect, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useActionState, useState, useEffect, useRef, useTransition, useMemo, useCallback, type FormEvent } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   addRecipe,
   updateRecipe,
   deleteRecipe,
+  setRecipeTags,
+  createTagInline,
+  fetchRecipes,
   type Recipe,
   type RecipeActionState,
+  type RecipeWithTags,
+  type Tag,
 } from "./actions";
 import type { UUID } from "crypto";
 import {
@@ -18,10 +23,12 @@ import {
   updateInstruction,
   deleteInstruction,
   reorderInstructions,
+  createToolInline,
   type ActionState,
   type RecipeIngredient,
   type InventoryItem,
   type Instruction,
+  type Tool,
 } from "./[id]/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +78,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import {
   Trash2,
   Loader,
@@ -79,8 +87,25 @@ import {
   GripVertical,
   Pencil,
   Plus,
+  Search,
+  Clock,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
 import { Cancel } from "@/components/ui/cancel";
+import {
+  TagColorPicker,
+  type TagColor,
+} from "@/components/ui/tag-color-picker";
+import { TagBadge } from "@/components/ui/tag-badge";
 
 const initialState: RecipeActionState = { ok: true };
 const initialActionState: ActionState = { ok: true };
@@ -125,6 +150,9 @@ export function RecipeDialog({
   ingredients = [],
   instructions = [],
   inventory = [],
+  tools = [],
+  tags = [],
+  recipeTags = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -133,6 +161,9 @@ export function RecipeDialog({
   ingredients?: RecipeIngredient[];
   instructions?: Instruction[];
   inventory?: InventoryItem[];
+  tools?: Tool[];
+  tags?: { id: string; name: string; color: string }[];
+  recipeTags?: { id: string; tag_id: string; tag: { id: string; name: string } }[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>("basic");
   const [dialogKey, setDialogKey] = useState(0);
@@ -163,8 +194,8 @@ export function RecipeDialog({
               className={cn(
                 "w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 flex items-center justify-center text-xs sm:text-sm font-semibold transition-colors",
                 activeTab === "basic"
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-input hover:bg-primary/20",
+                  ? "bg-secondary text-primary-foreground border-secondary"
+                  : "border-input hover:bg-secondary/20",
               )}
             >
               1
@@ -175,8 +206,8 @@ export function RecipeDialog({
               className={cn(
                 "w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 flex items-center justify-center text-xs sm:text-sm font-semibold transition-colors",
                 activeTab === "ingredients"
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-input hover:bg-primary/20",
+                  ? "bg-secondary text-primary-foreground border-secondary"
+                  : "border-input hover:bg-secondary/20",
               )}
             >
               2
@@ -187,8 +218,8 @@ export function RecipeDialog({
               className={cn(
                 "w-8 h-8 sm:w-9 sm:h-9 rounded-full border-2 flex items-center justify-center text-xs sm:text-sm font-semibold transition-colors",
                 activeTab === "instructions"
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-input hover:bg-primary/20",
+                  ? "bg-secondary text-primary-foreground border-secondary"
+                  : "border-input hover:bg-secondary/20",
               )}
             >
               3
@@ -219,12 +250,15 @@ export function RecipeDialog({
                   mode={mode}
                   recipe={recipe}
                   onSuccess={handleSuccess}
+                  tags={tags}
+                  recipeTags={recipeTags}
                 />
               )}
               {activeTab === "ingredients" && (
                 <IngredientsTab
                   recipeId={recipe?.id}
                   ingredients={ingredients}
+                  instructions={instructions}
                   inventory={inventory}
                 />
               )}
@@ -232,6 +266,7 @@ export function RecipeDialog({
                 <InstructionsTab
                   recipeId={recipe?.id}
                   instructions={instructions}
+                  tools={tools}
                 />
               )}
             </div>
@@ -264,26 +299,44 @@ function BasicInfoTab({
   mode,
   recipe,
   onSuccess,
+  tags: initialTags = [],
+  recipeTags = [],
 }: {
   mode: "add" | "edit";
   recipe?: Recipe;
   onSuccess: () => void;
+  tags?: { id: string; name: string; color: string }[];
+  recipeTags?: { id: string; tag_id: string; tag: { id: string; name: string } }[];
 }) {
   const action = mode === "add" ? addRecipe : updateRecipe;
   const [state, formAction, pending] = useActionState(action, initialState);
   const [prepMinutes, setPrepMinutes] = useState(recipe?.prep_minutes ?? 0);
   const [cookMinutes, setCookMinutes] = useState(recipe?.cook_minutes ?? 0);
   const [wasPending, setWasPending] = useState(false);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
+    recipeTags.map((rt) => rt.tag_id),
+  );
+  const [tags, setTags] = useState(initialTags);
 
-  // Close dialog on success
+  const handleTagCreated = (tag: Tag) => {
+    setTags((prev) =>
+      [...prev, tag].sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  };
+
+  // Close dialog on success, save tags
   useEffect(() => {
     if (pending) {
       setWasPending(true);
     } else if (wasPending && state.ok) {
+      // Save tags separately if in edit mode
+      if (recipe?.id) {
+        setRecipeTags(recipe.id, selectedTagIds);
+      }
       onSuccess();
       setWasPending(false);
     }
-  }, [state.ok, pending, wasPending, onSuccess]);
+  }, [state.ok, pending, wasPending, onSuccess, recipe?.id, selectedTagIds]);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -347,10 +400,22 @@ function BasicInfoTab({
         </p>
       </div>
 
+      {mode === "edit" && recipe && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Tags</label>
+          <TagMultiSelect
+            tags={tags}
+            selectedTagIds={selectedTagIds}
+            onSelectionChange={setSelectedTagIds}
+            onTagCreated={handleTagCreated}
+          />
+        </div>
+      )}
+
       {!state.ok && <p className="text-sm text-destructive">{state.error}</p>}
 
       <div className="flex justify-end pt-4">
-        <Button type="submit" disabled={pending}>
+        <Button variant={"secondary"} type="submit" disabled={pending}>
           {pending ? (
             <>
               <Loader className="w-4 h-4 animate-spin mr-2" />
@@ -372,12 +437,15 @@ function BasicInfoTab({
 function IngredientsTab({
   recipeId,
   ingredients,
+  instructions,
   inventory,
 }: {
   recipeId?: UUID;
   ingredients: RecipeIngredient[];
+  instructions: Instruction[];
   inventory: InventoryItem[];
 }) {
+  const totalSteps = instructions.length;
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   // Clear highlight after 3 seconds
@@ -424,6 +492,7 @@ function IngredientsTab({
                   key={ing.id}
                   ingredient={ing}
                   recipeId={recipeId}
+                  totalSteps={totalSteps}
                   isHighlighted={highlightedId === ing.inventory.id}
                 />
               ))}
@@ -436,6 +505,7 @@ function IngredientsTab({
         recipeId={recipeId}
         inventory={inventory}
         existingIngredients={ingredients}
+        totalSteps={totalSteps}
         onDuplicateAttempt={setHighlightedId}
       />
     </div>
@@ -445,10 +515,12 @@ function IngredientsTab({
 function IngredientRow({
   ingredient: ing,
   recipeId,
+  totalSteps,
   isHighlighted = false,
 }: {
   ingredient: RecipeIngredient;
   recipeId: UUID;
+  totalSteps: number;
   isHighlighted?: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -463,6 +535,12 @@ function IngredientRow({
   const [wasPending, setWasPending] = useState(false);
   const [amount, setAmount] = useState(ing.amount?.toString() ?? "");
   const [unit, setUnit] = useState(ing.unit ?? ing.inventory.unit ?? "");
+  const [firstUsedStep, setFirstUsedStep] = useState(
+    ing.first_used_step?.toString() ?? "",
+  );
+  const [usedInSteps, setUsedInSteps] = useState<number[]>(
+    ing.used_in_steps ?? [],
+  );
 
   useEffect(() => {
     if (pending) {
@@ -490,10 +568,18 @@ function IngredientRow({
     }
   };
 
+  const toggleUsedInStep = (step: number) => {
+    setUsedInSteps((prev) =>
+      prev.includes(step)
+        ? prev.filter((s) => s !== step)
+        : [...prev, step].sort((a, b) => a - b),
+    );
+  };
+
   if (isEditing) {
     return (
       <tr className="border-t">
-        <td colSpan={5} className="p-2">
+        <td colSpan={5} className="p-2 space-y-2">
           <div className="flex items-center gap-2">
             <form
               action={formAction}
@@ -502,6 +588,16 @@ function IngredientRow({
               <Input type="hidden" name="id" value={ing.id} />
               <Input type="hidden" name="recipe_id" value={recipeId} />
               <Input type="hidden" name="unit" value={unit} />
+              <Input
+                type="hidden"
+                name="first_used_step"
+                value={firstUsedStep}
+              />
+              <Input
+                type="hidden"
+                name="used_in_steps"
+                value={JSON.stringify(usedInSteps)}
+              />
               <span className="text-sm font-medium truncate">
                 {ing.inventory.name}
               </span>
@@ -521,6 +617,7 @@ function IngredientRow({
               />
               <div className="flex items-center gap-0.5 flex-shrink-0">
                 <Button
+                  variant={"secondary"}
                   type="submit"
                   size="icon"
                   className="w-8 h-8"
@@ -561,6 +658,50 @@ function IngredientRow({
               </Button>
             </form>
           </div>
+
+          {totalSteps > 0 && (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">
+                  First used in step
+                </label>
+                <Input
+                  type="number"
+                  min="1"
+                  max={totalSteps}
+                  value={firstUsedStep}
+                  onChange={(e) => setFirstUsedStep(e.target.value)}
+                  placeholder="—"
+                  className="w-14 h-7 text-xs"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-muted-foreground">
+                  Also used in steps
+                </label>
+                <div className="flex gap-1">
+                  {Array.from({ length: totalSteps }, (_, i) => i + 1).map(
+                    (step) => (
+                      <button
+                        key={step}
+                        type="button"
+                        onClick={() => toggleUsedInStep(step)}
+                        className={cn(
+                          "w-7 h-7 rounded-md border text-xs font-medium transition-colors",
+                          usedInSteps.includes(step)
+                            ? "bg-secondary text-primary-foreground border-secondary"
+                            : "border-input hover:bg-secondary/40",
+                        )}
+                      >
+                        {step}
+                      </button>
+                    ),
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {!state.ok && (
             <p className="text-sm text-destructive">{state.error}</p>
           )}
@@ -626,11 +767,13 @@ function AddIngredientForm({
   recipeId,
   inventory,
   existingIngredients,
+  totalSteps,
   onDuplicateAttempt,
 }: {
   recipeId: UUID;
   inventory: InventoryItem[];
   existingIngredients: RecipeIngredient[];
+  totalSteps: number;
   onDuplicateAttempt: (inventoryId: string) => void;
 }) {
   const [state, formAction, pending] = useActionState(
@@ -639,6 +782,8 @@ function AddIngredientForm({
   );
   const [selectedId, setSelectedId] = useState("");
   const [unit, setUnit] = useState("");
+  const [firstUsedStep, setFirstUsedStep] = useState("");
+  const [usedInSteps, setUsedInSteps] = useState<number[]>([]);
   const [wasPending, setWasPending] = useState(false);
 
   useEffect(() => {
@@ -647,9 +792,19 @@ function AddIngredientForm({
     } else if (wasPending && state.ok) {
       setSelectedId("");
       setUnit("");
+      setFirstUsedStep("");
+      setUsedInSteps([]);
       setWasPending(false);
     }
   }, [pending, state.ok, wasPending]);
+
+  const toggleUsedInStep = (step: number) => {
+    setUsedInSteps((prev) =>
+      prev.includes(step)
+        ? prev.filter((s) => s !== step)
+        : [...prev, step].sort((a, b) => a - b),
+    );
+  };
 
   const handleSelect = (id: string, itemUnit: string | null) => {
     const isDuplicate = existingIngredients.some(
@@ -675,6 +830,12 @@ function AddIngredientForm({
       <Input type="hidden" name="recipe_id" value={recipeId} />
       <Input type="hidden" name="inventory_id" value={selectedId} />
       <Input type="hidden" name="unit" value={unit} />
+      <Input type="hidden" name="first_used_step" value={firstUsedStep} />
+      <Input
+        type="hidden"
+        name="used_in_steps"
+        value={JSON.stringify(usedInSteps)}
+      />
 
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium">Ingredient</label>
@@ -702,14 +863,55 @@ function AddIngredientForm({
         </div>
       </div>
 
+      {totalSteps > 0 && (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">First used in step</label>
+            <Input
+              type="number"
+              min="1"
+              max={totalSteps}
+              value={firstUsedStep}
+              onChange={(e) => setFirstUsedStep(e.target.value)}
+              placeholder="—"
+              className="w-20"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium">Also used in steps</label>
+            <div className="flex gap-1">
+              {Array.from({ length: totalSteps }, (_, i) => i + 1).map(
+                (step) => (
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => toggleUsedInStep(step)}
+                    className={cn(
+                      "w-8 h-8 rounded-md border text-xs font-medium transition-colors",
+                      usedInSteps.includes(step)
+                        ? "bg-secondary text-primary-foreground border-secondary"
+                        : "border-input hover:bg-secondary/40",
+                    )}
+                  >
+                    {step}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
-        <Button type="submit" disabled={pending || !selectedId}>
+        <Button
+          variant={"secondary"}
+          type="submit"
+          disabled={pending || !selectedId}
+        >
           {pending ? "Adding..." : "Add"}
         </Button>
 
-        {!state.ok && (
-          <p className="text-sm text-destructive">{state.error}</p>
-        )}
+        {!state.ok && <p className="text-sm text-destructive">{state.error}</p>}
       </div>
     </form>
   );
@@ -778,18 +980,273 @@ function InventoryCombobox({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tool Multi-Select Combobox
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ToolMultiSelect({
+  tools,
+  selectedToolIds,
+  onSelectionChange,
+  onToolCreated,
+}: {
+  tools: Tool[];
+  selectedToolIds: string[];
+  onSelectionChange: (ids: string[]) => void;
+  onToolCreated: (tool: Tool) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+
+  const selectedTools = tools.filter((t) => selectedToolIds.includes(t.id));
+  const label =
+    selectedTools.length > 0
+      ? selectedTools.map((t) => t.name).join(", ")
+      : "Select tools...";
+
+  const handleToggle = (toolId: string) => {
+    if (selectedToolIds.includes(toolId)) {
+      onSelectionChange(selectedToolIds.filter((id) => id !== toolId));
+    } else {
+      onSelectionChange([...selectedToolIds, toolId]);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!search.trim()) return;
+    setIsCreating(true);
+    const result = await createToolInline(search.trim());
+    setIsCreating(false);
+    if (result.ok && result.tool) {
+      onToolCreated(result.tool);
+      onSelectionChange([...selectedToolIds, result.tool.id]);
+      setSearch("");
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            <span className="truncate text-left flex-1">{label}</span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+          <Command>
+            <CommandInput
+              placeholder="Search tools..."
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList>
+              <CommandEmpty>
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={isCreating}
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:text-primary transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  {isCreating ? "Creating..." : `Add "${search}"`}
+                </button>
+              </CommandEmpty>
+              <CommandGroup>
+                {tools.map((tool) => (
+                  <CommandItem
+                    key={tool.id}
+                    value={tool.name}
+                    onSelect={() => handleToggle(tool.id)}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedToolIds.includes(tool.id)
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
+                    />
+                    {tool.name}
+                    {tool.location && (
+                      <span className="ml-auto text-muted-foreground text-xs">
+                        ({tool.location})
+                      </span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selectedTools.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedTools.map((tool) => (
+            <Badge key={tool.id} variant="secondary" className="text-xs">
+              {tool.name}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tag Multi-Select Combobox
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TagMultiSelect({
+  tags,
+  selectedTagIds,
+  onSelectionChange,
+  onTagCreated,
+}: {
+  tags: { id: string; name: string; color: string }[];
+  selectedTagIds: string[];
+  onSelectionChange: (ids: string[]) => void;
+  onTagCreated: (tag: Tag) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [newTagColor, setNewTagColor] = useState<TagColor>("primary");
+
+  const selectedTags = tags.filter((t) => selectedTagIds.includes(t.id));
+  const label =
+    selectedTags.length > 0
+      ? selectedTags.map((t) => t.name).join(", ")
+      : "Select tags...";
+
+  const handleToggle = (tagId: string) => {
+    if (selectedTagIds.includes(tagId)) {
+      onSelectionChange(selectedTagIds.filter((id) => id !== tagId));
+    } else {
+      onSelectionChange([...selectedTagIds, tagId]);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!search.trim()) return;
+    setIsCreating(true);
+    const result = await createTagInline(search.trim(), newTagColor);
+    setIsCreating(false);
+    if (result.ok && result.tag) {
+      onTagCreated(result.tag);
+      onSelectionChange([...selectedTagIds, result.tag.id]);
+      setSearch("");
+      setNewTagColor("primary");
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            <span className="truncate text-left flex-1">{label}</span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+          <Command>
+            <CommandInput
+              placeholder="Search tags..."
+              value={search}
+              onValueChange={setSearch}
+            />
+            <CommandList>
+              <CommandEmpty>
+                <div className="px-2 py-1.5 space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Create new tag: <span className="font-medium">{search}</span>
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-medium">Color</label>
+                    <TagColorPicker
+                      value={newTagColor}
+                      onChange={setNewTagColor}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCreate}
+                    disabled={isCreating}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-sm hover:text-primary transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {isCreating ? "Creating..." : "Create Tag"}
+                  </button>
+                </div>
+              </CommandEmpty>
+              <CommandGroup>
+                {tags.map((tag) => (
+                  <CommandItem
+                    key={tag.id}
+                    value={tag.name}
+                    onSelect={() => handleToggle(tag.id)}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedTagIds.includes(tag.id)
+                          ? "opacity-100"
+                          : "opacity-0",
+                      )}
+                    />
+                    {tag.name}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {selectedTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedTags.map((tag) => (
+            <TagBadge key={tag.id} name={tag.name} color={tag.color} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Instructions Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
 function InstructionsTab({
   recipeId,
   instructions,
+  tools: initialTools = [],
 }: {
   recipeId?: UUID;
   instructions: Instruction[];
+  tools?: Tool[];
 }) {
   const [items, setItems] = useState(instructions);
   const [isReordering, setIsReordering] = useState(false);
+  const [tools, setTools] = useState<Tool[]>(initialTools);
+
+  const handleToolCreated = (tool: Tool) => {
+    setTools((prev) =>
+      [...prev, tool].sort((a, b) => a.name.localeCompare(b.name)),
+    );
+  };
 
   useEffect(() => {
     setItems(instructions);
@@ -858,6 +1315,8 @@ function InstructionsTab({
                   instruction={step}
                   recipeId={recipeId}
                   displayNumber={index + 1}
+                  tools={tools}
+                  onToolCreated={handleToolCreated}
                 />
               ))}
             </ol>
@@ -865,7 +1324,11 @@ function InstructionsTab({
         </DndContext>
       )}
 
-      <AddInstructionForm recipeId={recipeId} />
+      <AddInstructionForm
+        recipeId={recipeId}
+        tools={tools}
+        onToolCreated={handleToolCreated}
+      />
     </div>
   );
 }
@@ -874,10 +1337,14 @@ function SortableInstructionRow({
   instruction,
   recipeId,
   displayNumber,
+  tools,
+  onToolCreated,
 }: {
   instruction: Instruction;
   recipeId: UUID;
   displayNumber: number;
+  tools: Tool[];
+  onToolCreated: (tool: Tool) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -890,7 +1357,9 @@ function SortableInstructionRow({
   );
   const [wasPending, setWasPending] = useState(false);
   const [text, setText] = useState(instruction.text);
-  const [detail, setDetail] = useState(instruction.detail ?? "");
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>(
+    (instruction.instruction_tools ?? []).map((it) => it.tool_id),
+  );
 
   const {
     attributes,
@@ -930,29 +1399,39 @@ function SortableInstructionRow({
         style={style}
         className="flex items-start gap-2 p-2 border rounded-lg bg-background"
       >
-        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold mt-0.5">
+        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-secondary text-primary-foreground flex items-center justify-center text-xs font-semibold mt-0.5">
           {displayNumber}
         </span>
 
-        <form action={formAction} className="flex-1 min-w-0 space-y-2">
-          <Input type="hidden" name="id" value={instruction.id} />
-          <Input type="hidden" name="recipe_id" value={recipeId} />
-          <Textarea
-            name="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={2}
-            required
-          />
-          <Input
-            name="detail"
-            value={detail}
-            onChange={(e) => setDetail(e.target.value)}
-            placeholder="Detail (optional)"
-          />
-          <div className="flex justify-between">
+        <div className="flex-1 min-w-0 space-y-2">
+          <form action={formAction} className="space-y-2">
+            <Input type="hidden" name="id" value={instruction.id} />
+            <Input type="hidden" name="recipe_id" value={recipeId} />
+            <Input
+              type="hidden"
+              name="tool_ids"
+              value={JSON.stringify(selectedToolIds)}
+            />
+            <Textarea
+              name="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={2}
+              required
+            />
+            <ToolMultiSelect
+              tools={tools}
+              selectedToolIds={selectedToolIds}
+              onSelectionChange={setSelectedToolIds}
+              onToolCreated={onToolCreated}
+            />
             <div className="flex gap-2">
-              <Button type="submit" size="sm" disabled={pending}>
+              <Button
+                variant={"secondary"}
+                type="submit"
+                size="sm"
+                disabled={pending}
+              >
                 {pending ? "Saving..." : "Save"}
               </Button>
               <Button
@@ -964,23 +1443,27 @@ function SortableInstructionRow({
                 Cancel
               </Button>
             </div>
-            <form action={deleteFormAction} onSubmit={handleDelete}>
-              <Input type="hidden" name="id" value={instruction.id} />
-              <Input type="hidden" name="recipe_id" value={recipeId} />
-              <Button
-                type="submit"
-                variant="iconDestructive"
-                size="icon"
-                disabled={deletePending}
-              >
-                <Trash2 className="w-3 h-3" />
-              </Button>
-            </form>
-          </div>
-          {!state.ok && (
-            <p className="text-sm text-destructive">{state.error}</p>
-          )}
-        </form>
+            {!state.ok && (
+              <p className="text-sm text-destructive">{state.error}</p>
+            )}
+          </form>
+          <form
+            action={deleteFormAction}
+            onSubmit={handleDelete}
+            className="flex justify-end"
+          >
+            <Input type="hidden" name="id" value={instruction.id} />
+            <Input type="hidden" name="recipe_id" value={recipeId} />
+            <Button
+              type="submit"
+              variant="iconDestructive"
+              size="icon"
+              disabled={deletePending}
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </form>
+        </div>
       </li>
     );
   }
@@ -1019,28 +1502,40 @@ function SortableInstructionRow({
           </TooltipProvider>
         </div>
       </div>
-      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold mt-0.5">
+      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-secondary text-primary-foreground flex items-center justify-center text-xs font-semibold mt-0.5">
         {displayNumber}
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-sm">{instruction.text}</p>
-        {instruction.detail && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {instruction.detail}
-          </p>
+        {(instruction.instruction_tools ?? []).length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {instruction.instruction_tools.map((it) => (
+              <Badge key={it.id} variant="secondary" className="text-xs">
+                {it.tool.name}
+              </Badge>
+            ))}
+          </div>
         )}
       </div>
     </li>
   );
 }
 
-function AddInstructionForm({ recipeId }: { recipeId: UUID }) {
+function AddInstructionForm({
+  recipeId,
+  tools,
+  onToolCreated,
+}: {
+  recipeId: UUID;
+  tools: Tool[];
+  onToolCreated: (tool: Tool) => void;
+}) {
   const [state, formAction, pending] = useActionState(
     addInstruction,
     initialActionState,
   );
   const [text, setText] = useState("");
-  const [detail, setDetail] = useState("");
+  const [selectedToolIds, setSelectedToolIds] = useState<string[]>([]);
   const [wasPending, setWasPending] = useState(false);
 
   useEffect(() => {
@@ -1048,7 +1543,7 @@ function AddInstructionForm({ recipeId }: { recipeId: UUID }) {
       setWasPending(true);
     } else if (wasPending && state.ok) {
       setText("");
-      setDetail("");
+      setSelectedToolIds([]);
       setWasPending(false);
     }
   }, [pending, state.ok, wasPending]);
@@ -1060,6 +1555,11 @@ function AddInstructionForm({ recipeId }: { recipeId: UUID }) {
     >
       <h4 className="text-sm sm:text-base font-medium">Add New Step</h4>
       <Input type="hidden" name="recipe_id" value={recipeId} />
+      <Input
+        type="hidden"
+        name="tool_ids"
+        value={JSON.stringify(selectedToolIds)}
+      />
       <Textarea
         name="text"
         value={text}
@@ -1068,19 +1568,21 @@ function AddInstructionForm({ recipeId }: { recipeId: UUID }) {
         rows={2}
         required
       />
-      <Input
-        name="detail"
-        value={detail}
-        onChange={(e) => setDetail(e.target.value)}
-        placeholder="Detail (optional)"
+      <ToolMultiSelect
+        tools={tools}
+        selectedToolIds={selectedToolIds}
+        onSelectionChange={setSelectedToolIds}
+        onToolCreated={onToolCreated}
       />
       <div className="flex gap-2 items-center">
-        <Button type="submit" disabled={pending || !text.trim()}>
+        <Button
+          variant={"secondary"}
+          type="submit"
+          disabled={pending || !text.trim()}
+        >
           {pending ? "Adding..." : "Add Step"}
         </Button>
-        {!state.ok && (
-          <p className="text-sm text-destructive">{state.error}</p>
-        )}
+        {!state.ok && <p className="text-sm text-destructive">{state.error}</p>}
       </div>
     </form>
   );
@@ -1136,5 +1638,514 @@ function DeleteRecipeButton({
         <Trash2 className="w-5 h-5" />
       </Button>
     </form>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recipe Search & Filter Components
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ITEMS_PER_PAGE = 15;
+
+const TIME_RANGE_OPTIONS = [
+  { value: "all", label: "All recipes" },
+  { value: "15", label: "Under 15 min" },
+  { value: "30", label: "Under 30 min" },
+  { value: "60", label: "Under 1 hour" },
+  { value: "999", label: "1 hour or more" },
+];
+
+export function RecipeSearchFilter({
+  allTags,
+  allTools,
+}: {
+  allTags: Tag[];
+  allTools: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  // Get stable URL param string
+  const urlParamsString = useMemo(() => searchParams.toString(), [searchParams]);
+  const currentSearch = useMemo(() => searchParams.get("q") ?? "", [searchParams]);
+
+  const [searchValue, setSearchValue] = useState(currentSearch);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUrlParamsRef = useRef(urlParamsString);
+
+  // Sync search value when URL changes from external source (browser back/forward)
+  useEffect(() => {
+    if (lastUrlParamsRef.current !== urlParamsString) {
+      setSearchValue(currentSearch);
+      lastUrlParamsRef.current = urlParamsString;
+    }
+  }, [currentSearch, urlParamsString]);
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Debounce the URL update
+    debounceTimerRef.current = setTimeout(() => {
+      if (value !== currentSearch) {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value) {
+          params.set("q", value);
+        } else {
+          params.delete("q");
+        }
+        startTransition(() => {
+          router.push(`${pathname}?${params.toString()}`);
+        });
+      }
+    }, 500);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search recipes..."
+          value={searchValue}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="pl-9"
+        />
+        {isPending && (
+          <Loader className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+        )}
+      </div>
+      <TagMultiSelectFilter tags={allTags} />
+      <ToolMultiSelectFilter tools={allTools} />
+      <TimeRangeFilter />
+    </div>
+  );
+}
+
+function TagMultiSelectFilter({ tags }: { tags: Tag[] }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  // Get stable URL param values
+  const urlParamsString = useMemo(() => searchParams.toString(), [searchParams]);
+  const urlTagsString = useMemo(() => searchParams.get("tags") ?? "", [searchParams]);
+
+  const currentIds = useMemo(
+    () => urlTagsString.split(",").filter((id) => id.length > 0),
+    [urlTagsString]
+  );
+
+  const [pendingIds, setPendingIds] = useState<string[]>(currentIds);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUrlParamsRef = useRef(urlParamsString);
+
+  // Sync pending IDs when URL changes from external source
+  useEffect(() => {
+    if (lastUrlParamsRef.current !== urlParamsString) {
+      setPendingIds(currentIds);
+      lastUrlParamsRef.current = urlParamsString;
+    }
+  }, [currentIds, urlParamsString]);
+
+  const handleToggleTag = (tagId: string) => {
+    const newSelected = pendingIds.includes(tagId)
+      ? pendingIds.filter((id) => id !== tagId)
+      : [...pendingIds, tagId];
+
+    setPendingIds(newSelected);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Debounce the URL update
+    debounceTimerRef.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (newSelected.length > 0) {
+        params.set("tags", newSelected.join(","));
+      } else {
+        params.delete("tags");
+      }
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    }, 500);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  const selectedTags = tags.filter((t) => pendingIds.includes(t.id));
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="justify-between min-w-[140px]">
+          {selectedTags.length > 0 ? (
+            <span className="flex items-center gap-1">
+              Tags ({selectedTags.length})
+              {isPending && <Loader className="w-3 h-3 animate-spin" />}
+            </span>
+          ) : (
+            "All Tags"
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[250px] p-0">
+        <Command>
+          <CommandInput placeholder="Search tags..." />
+          <CommandList>
+            <CommandEmpty>No tags found.</CommandEmpty>
+            <CommandGroup>
+              {tags.map((tag) => {
+                const isSelected = pendingIds.includes(tag.id);
+                return (
+                  <CommandItem
+                    key={tag.id}
+                    onSelect={() => handleToggleTag(tag.id)}
+                  >
+                    <Checkbox checked={isSelected} className="mr-2" />
+                    <TagBadge name={tag.name} color={tag.color} />
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function ToolMultiSelectFilter({
+  tools,
+}: {
+  tools: { id: string; name: string }[];
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  // Get stable URL param values
+  const urlParamsString = useMemo(() => searchParams.toString(), [searchParams]);
+  const urlToolsString = useMemo(() => searchParams.get("tools") ?? "", [searchParams]);
+
+  const currentIds = useMemo(
+    () => urlToolsString.split(",").filter((id) => id.length > 0),
+    [urlToolsString]
+  );
+
+  const [pendingIds, setPendingIds] = useState<string[]>(currentIds);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastUrlParamsRef = useRef(urlParamsString);
+
+  // Sync pending IDs when URL changes from external source
+  useEffect(() => {
+    if (lastUrlParamsRef.current !== urlParamsString) {
+      setPendingIds(currentIds);
+      lastUrlParamsRef.current = urlParamsString;
+    }
+  }, [currentIds, urlParamsString]);
+
+  const handleToggleTool = (toolId: string) => {
+    const newSelected = pendingIds.includes(toolId)
+      ? pendingIds.filter((id) => id !== toolId)
+      : [...pendingIds, toolId];
+
+    setPendingIds(newSelected);
+
+    // Clear existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Debounce the URL update
+    debounceTimerRef.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (newSelected.length > 0) {
+        params.set("tools", newSelected.join(","));
+      } else {
+        params.delete("tools");
+      }
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`);
+      });
+    }, 500);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="justify-between min-w-[140px]">
+          {pendingIds.length > 0 ? (
+            <span className="flex items-center gap-1">
+              Tools ({pendingIds.length})
+              {isPending && <Loader className="w-3 h-3 animate-spin" />}
+            </span>
+          ) : (
+            "All Tools"
+          )}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[250px] p-0">
+        <Command>
+          <CommandInput placeholder="Search tools..." />
+          <CommandList>
+            <CommandEmpty>No tools found.</CommandEmpty>
+            <CommandGroup>
+              {tools.map((tool) => {
+                const isSelected = pendingIds.includes(tool.id);
+                return (
+                  <CommandItem
+                    key={tool.id}
+                    onSelect={() => handleToggleTool(tool.id)}
+                  >
+                    <Checkbox checked={isSelected} className="mr-2" />
+                    {tool.name}
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function TimeRangeFilter() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  const currentValue = searchParams.get("time") ?? "all";
+
+  const handleChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value !== "all") {
+      params.set("time", value);
+    } else {
+      params.delete("time");
+    }
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`);
+    });
+  };
+
+  const selectedLabel =
+    TIME_RANGE_OPTIONS.find((opt) => opt.value === currentValue)?.label ??
+    "All recipes";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="justify-between min-w-[150px]">
+          <Clock className="w-4 h-4 mr-2" />
+          {selectedLabel}
+          {isPending && <Loader className="w-3 h-3 ml-1 animate-spin" />}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuRadioGroup value={currentValue} onValueChange={handleChange}>
+          {TIME_RANGE_OPTIONS.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function InfiniteRecipesList({
+  initialRecipes,
+  initialHasMore,
+  search,
+  tagIds,
+  toolIds,
+  timeRange,
+  allTags,
+  allTools,
+}: {
+  initialRecipes: RecipeWithTags[];
+  initialHasMore: boolean;
+  search: string;
+  tagIds: string[];
+  toolIds: string[];
+  timeRange: number | null;
+  allTags: Tag[];
+  allTools: { id: string; name: string }[];
+}) {
+  const [items, setItems] = useState<RecipeWithTags[]>(initialRecipes);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [loading, setLoading] = useState(false);
+  const [loadNumber, setLoadNumber] = useState(1);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Create stable filter key for memoization
+  const filterKey = useMemo(() => {
+    const sortedTags = [...tagIds].sort().join(",");
+    const sortedTools = [...toolIds].sort().join(",");
+    return `${search}|${sortedTags}|${sortedTools}|${timeRange}`;
+  }, [search, tagIds, toolIds, timeRange]);
+
+  const lastFilterKeyRef = useRef(filterKey);
+
+  // Reset list when filters change
+  useEffect(() => {
+    if (lastFilterKeyRef.current !== filterKey) {
+      setItems(initialRecipes);
+      setLoadNumber(1);
+      setHasMore(initialHasMore);
+      lastFilterKeyRef.current = filterKey;
+    }
+  }, [filterKey, initialRecipes, initialHasMore]);
+
+  const loadMore = useCallback(async () => {
+    if (loading || !hasMore) return;
+    setLoading(true);
+
+    const { recipes, hasMore: newHasMore } = await fetchRecipes(
+      loadNumber * ITEMS_PER_PAGE,
+      ITEMS_PER_PAGE,
+      search,
+      tagIds,
+      toolIds,
+      timeRange,
+    );
+
+    setItems((prev) => [...prev, ...recipes]);
+    setHasMore(newHasMore);
+    setLoadNumber((prev) => prev + 1);
+    setLoading(false);
+  }, [loading, hasMore, loadNumber, search, tagIds, toolIds, timeRange]);
+
+  // Setup intersection observer for infinite scroll
+  useEffect(() => {
+    if (!hasMore || loading) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "100px" } // Start loading slightly before reaching the bottom
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => observerRef.current?.disconnect();
+  }, [hasMore, loading, loadMore]);
+
+  const hasActiveFilters =
+    search || tagIds.length > 0 || toolIds.length > 0 || timeRange !== null;
+
+  if (items.length === 0) {
+    return (
+      <div className="py-8 text-center text-muted-foreground">
+        {hasActiveFilters
+          ? "No recipes match your filters. Try adjusting your search criteria."
+          : "No recipes found. Add your first recipe to get started!"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {items.map((recipe) => (
+          <Card
+            key={recipe.id}
+            className="flex flex-col hover:bg-secondary/40 hover:scale-105 transition-all ease-in-out duration-300"
+          >
+            <Link href={`/dashboard/food/recipes/${recipe.id}`}>
+              <CardHeader>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CardTitle className="flex-shrink-0">{recipe.name}</CardTitle>
+                  {recipe.recipe_tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {recipe.recipe_tags.map((rt) => (
+                        <TagBadge
+                          key={rt.id}
+                          name={rt.tag.name}
+                          color={rt.tag.color}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-end justify-between">
+                  <div className="flex gap-1">
+                    <Badge variant="ghost">Prep: {recipe.prep_minutes}m</Badge>
+                    <Badge variant="ghost">Cook: {recipe.cook_minutes}m</Badge>
+                  </div>
+                  <Badge variant="ghostAccent">
+                    Total: {recipe.total_minutes}m
+                  </Badge>
+                </div>
+              </CardContent>
+            </Link>
+          </Card>
+        ))}
+      </div>
+      {hasMore && (
+        <div ref={loadMoreRef} className="flex justify-center py-4">
+          {loading && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader className="w-4 h-4 animate-spin" />
+              Loading more recipes...
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

@@ -9,11 +9,24 @@ export type ActionState = {
   error?: string;
 };
 
+export type Tool = {
+  id: UUID;
+  name: string;
+  location: string | null;
+};
+
+export type InstructionTool = {
+  id: UUID;
+  tool_id: UUID;
+  tool: Tool;
+};
+
 export type Instruction = {
   id: UUID;
   step_number: number;
   text: string;
   detail: string | null;
+  instruction_tools: InstructionTool[];
 };
 
 export type RecipeIngredient = {
@@ -53,6 +66,13 @@ export async function addIngredient(
   const amount = formData.get("amount") ? Number(formData.get("amount")) : null;
   const unit = String(formData.get("unit") || "").trim() || null;
   const note = String(formData.get("note") || "").trim() || null;
+  const firstUsedStep = formData.get("first_used_step")
+    ? Number(formData.get("first_used_step"))
+    : null;
+  const usedInStepsRaw = String(formData.get("used_in_steps") || "").trim();
+  const usedInSteps: number[] = usedInStepsRaw
+    ? JSON.parse(usedInStepsRaw)
+    : [];
 
   if (!recipeId) {
     return { ok: false, error: "Recipe ID is required" };
@@ -80,6 +100,8 @@ export async function addIngredient(
     amount,
     unit,
     note,
+    first_used_step: firstUsedStep,
+    used_in_steps: usedInSteps,
     position: nextPosition,
   });
 
@@ -115,6 +137,14 @@ export async function updateIngredient(
   }
   if (formData.has("note")) {
     updates.note = String(formData.get("note") || "").trim() || null;
+  }
+  if (formData.has("first_used_step")) {
+    const val = formData.get("first_used_step");
+    updates.first_used_step = val ? Number(val) : null;
+  }
+  if (formData.has("used_in_steps")) {
+    const raw = String(formData.get("used_in_steps") || "").trim();
+    updates.used_in_steps = raw ? JSON.parse(raw) : [];
   }
 
   if (Object.keys(updates).length === 0) {
@@ -172,7 +202,8 @@ export async function addInstruction(
 
   const recipeId = String(formData.get("recipe_id") || "").trim();
   const text = String(formData.get("text") || "").trim();
-  const detail = String(formData.get("detail") || "").trim() || null;
+  const toolIdsRaw = String(formData.get("tool_ids") || "").trim();
+  const toolIds: string[] = toolIdsRaw ? JSON.parse(toolIdsRaw) : [];
 
   if (!recipeId) {
     return { ok: false, error: "Recipe ID is required" };
@@ -192,15 +223,27 @@ export async function addInstruction(
   const nextStep =
     existing && existing.length > 0 ? existing[0].step_number + 1 : 1;
 
-  const { error } = await supabase.from("instructions").insert({
-    recipe_id: recipeId,
-    step_number: nextStep,
-    text,
-    detail,
-  });
+  const { data: newInstruction, error } = await supabase
+    .from("instructions")
+    .insert({
+      recipe_id: recipeId,
+      step_number: nextStep,
+      text,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { ok: false, error: error.message };
+  }
+
+  // Associate tools with the new instruction
+  if (toolIds.length > 0 && newInstruction) {
+    const rows = toolIds.map((toolId) => ({
+      instruction_id: newInstruction.id,
+      tool_id: toolId,
+    }));
+    await supabase.from("instruction_tools").insert(rows);
   }
 
   revalidatePath(`/dashboard/food/recipes/${recipeId}`);
@@ -229,21 +272,46 @@ export async function updateInstruction(
     }
     updates.text = val;
   }
-  if (formData.has("detail")) {
-    updates.detail = String(formData.get("detail") || "").trim() || null;
-  }
 
-  if (Object.keys(updates).length === 0) {
+  if (Object.keys(updates).length === 0 && !formData.has("tool_ids")) {
     return { ok: false, error: "No fields to update" };
   }
 
-  const { error } = await supabase
-    .from("instructions")
-    .update(updates)
-    .eq("id", id);
+  if (Object.keys(updates).length > 0) {
+    const { error } = await supabase
+      .from("instructions")
+      .update(updates)
+      .eq("id", id);
 
-  if (error) {
-    return { ok: false, error: error.message };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+  }
+
+  // Update tool associations if provided
+  if (formData.has("tool_ids")) {
+    const toolIdsRaw = String(formData.get("tool_ids") || "").trim();
+    const toolIds: string[] = toolIdsRaw ? JSON.parse(toolIdsRaw) : [];
+
+    // Delete existing tools for this instruction
+    await supabase
+      .from("instruction_tools")
+      .delete()
+      .eq("instruction_id", id);
+
+    // Insert new tool associations
+    if (toolIds.length > 0) {
+      const rows = toolIds.map((toolId) => ({
+        instruction_id: id,
+        tool_id: toolId,
+      }));
+      const { error: toolError } = await supabase
+        .from("instruction_tools")
+        .insert(rows);
+      if (toolError) {
+        return { ok: false, error: toolError.message };
+      }
+    }
   }
 
   revalidatePath(`/dashboard/food/recipes/${recipeId}`);
@@ -303,6 +371,34 @@ export async function deleteInstruction(
 
   revalidatePath(`/dashboard/food/recipes/${recipeId}`);
   return { ok: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOOL ACTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createToolInline(
+  name: string,
+): Promise<{ ok: boolean; error?: string; tool?: Tool }> {
+  const supabase = await createClient();
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: "Name is required" };
+
+  const { data, error } = await supabase
+    .from("tools")
+    .insert({ name: trimmed })
+    .select("id, name, location")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: "A tool with that name already exists" };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/dashboard/food/tools");
+  return { ok: true, tool: data as Tool };
 }
 
 export async function reorderInstructions(
