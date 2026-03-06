@@ -11,7 +11,7 @@ export default function MealPlanningPage() {
         <BreadcrumbNav />
         <section className="w-full max-w-5xl p-5 space-y-4">
           <h1 className="text-2xl font-semibold">Meal Planning</h1>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-4">
             <Button asChild variant="default" size="lg">
               <Link href="/dashboard/food/inventory">Inventory</Link>
             </Button>
@@ -20,6 +20,9 @@ export default function MealPlanningPage() {
             </Button>
             <Button asChild variant="outline" size="lg">
               <Link href="/dashboard/food/tools">Tools</Link>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/dashboard/food/meal-planning">Meal Planning</Link>
             </Button>
           </div>
         </section>

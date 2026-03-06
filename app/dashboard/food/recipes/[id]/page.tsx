@@ -15,7 +15,7 @@ import type {
   Tool,
 } from "./actions";
 import type { Recipe } from "../actions";
-import { EditRecipeButton, RecipeStepsSection } from "./widgets";
+import { AddToMealPlanButton, EditRecipeButton, RecipeStepsSection } from "./widgets";
 
 async function RecipeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -110,15 +110,18 @@ async function RecipeDetail({ params }: { params: Promise<{ id: string }> }) {
               </div>
             )}
           </div>
-          <EditRecipeButton
-            recipe={recipe}
-            ingredients={ingredients}
-            instructions={instructions}
-            inventory={inventory}
-            tools={tools}
-            tags={allTags}
-            recipeTags={recipeTags}
-          />
+          <div className="flex items-center gap-2">
+            <AddToMealPlanButton recipeId={recipe.id} recipeName={recipe.name} />
+            <EditRecipeButton
+              recipe={recipe}
+              ingredients={ingredients}
+              instructions={instructions}
+              inventory={inventory}
+              tools={tools}
+              tags={allTags}
+              recipeTags={recipeTags}
+            />
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="secondary">Prep: {recipe.prep_minutes}m</Badge>

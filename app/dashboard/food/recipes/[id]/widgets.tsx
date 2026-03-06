@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -11,16 +11,27 @@ import type {
 } from "./actions";
 import type { Recipe } from "../actions";
 import { RecipeDialog } from "../widgets";
+import { addMealPlan } from "../../meal-planning/actions";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronRight, Loader, TriangleAlert } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Edit Recipe Button
@@ -70,6 +81,101 @@ export function EditRecipeButton({
         tags={tags}
         recipeTags={recipeTags}
       />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Add to Meal Plan Button
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function AddToMealPlanButton({
+  recipeId,
+  recipeName,
+}: {
+  recipeId: string;
+  recipeName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const today = new Date().toISOString().split("T")[0];
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    setError(null);
+    startTransition(async () => {
+      const result = await addMealPlan(formData);
+      if (!result.ok) {
+        setError(result.error ?? "Something went wrong");
+      } else {
+        setOpen(false);
+      }
+    });
+  }
+
+  return (
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" onClick={() => { setError(null); setOpen(true); }}>
+              <CalendarDays className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Add to meal plan</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add to Meal Plan</DialogTitle>
+            <DialogDescription>
+              Schedule <span className="font-medium text-foreground">{recipeName}</span> on a day.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input type="hidden" name="recipe_id" value={recipeId} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="mp_date" className="text-sm font-medium">Date</label>
+                <Input
+                  id="mp_date"
+                  name="scheduled_date"
+                  type="date"
+                  defaultValue={today}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="mp_time" className="text-sm font-medium">Start Cooking</label>
+                <Input id="mp_time" name="cook_time" type="time" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="mp_notes" className="text-sm font-medium">Notes</label>
+              <Input id="mp_notes" name="notes" placeholder="e.g. Dinner, Breakfast..." />
+            </div>
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? <Loader className="w-4 h-4 animate-spin" /> : "Add to Plan"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
