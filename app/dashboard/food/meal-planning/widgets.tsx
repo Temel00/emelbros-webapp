@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, Plus, Clock, Loader, Trash2, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Clock, Loader, Trash2, CalendarDays, ShoppingCart } from "lucide-react";
 
 import {
   addMealPlan,
@@ -11,6 +11,7 @@ import {
   type MealPlan,
   type MealPlanRecipe,
 } from "./actions";
+import { generateShoppingList } from "../shopping-list/actions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -411,6 +412,104 @@ function MealDialog({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shopping List Dialog
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ShoppingListDialog({
+  year,
+  month,
+}: {
+  year: number;
+  month: number;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDayNum = new Date(year, month, 0).getDate();
+  const lastDay = `${year}-${String(month).padStart(2, "0")}-${String(lastDayNum).padStart(2, "0")}`;
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    setError(null);
+    startTransition(async () => {
+      const result = await generateShoppingList({ ok: true }, formData);
+      if (!result.ok) {
+        setError(result.error ?? "Failed to generate shopping list");
+      } else {
+        setOpen(false);
+        router.push("/dashboard/food/shopping-list");
+      }
+    });
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <ShoppingCart className="w-4 h-4" />
+        Shopping List
+      </Button>
+      <Dialog open={open} onOpenChange={(o) => { if (!o) setOpen(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Shopping List</DialogTitle>
+            <DialogDescription>
+              Choose a date range to build a shopping list from your planned meals.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="sl_start" className="text-sm font-medium">
+                  From
+                </label>
+                <Input
+                  id="sl_start"
+                  name="start_date"
+                  type="date"
+                  defaultValue={firstDay}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="sl_end" className="text-sm font-medium">
+                  To
+                </label>
+                <Input
+                  id="sl_end"
+                  name="end_date"
+                  type="date"
+                  defaultValue={lastDay}
+                  required
+                />
+              </div>
+            </div>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? (
+                  <Loader className="w-4 h-4 animate-spin" />
+                ) : (
+                  "Generate"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -451,7 +550,7 @@ export function MealPlanningCalendar({
   return (
     <div className="space-y-4">
       {/* Calendar header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-xl font-semibold">
             {MONTH_NAMES[month - 1]} {year}
@@ -463,6 +562,7 @@ export function MealPlanningCalendar({
           )}
         </div>
         <div className="flex items-center gap-1">
+          <ShoppingListDialog year={year} month={month} />
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>

@@ -21,8 +21,11 @@ export default function MealPlanningPage() {
             <Button asChild variant="outline" size="lg">
               <Link href="/dashboard/food/tools">Tools</Link>
             </Button>
-            <Button asChild variant="outline" size="lg">
+            <Button asChild variant="tertiary" size="lg">
               <Link href="/dashboard/food/meal-planning">Meal Planning</Link>
+            </Button>
+            <Button asChild variant="accent" size="lg">
+              <Link href="/dashboard/food/shopping-list">Shopping List</Link>
             </Button>
           </div>
         </section>
