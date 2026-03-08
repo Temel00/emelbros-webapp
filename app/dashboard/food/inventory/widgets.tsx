@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useCallback,
+  useTransition,
 } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
@@ -16,6 +17,15 @@ import {
   type InventoryActionState,
   type InventoryItem,
 } from "./actions";
+import {
+  fetchVendorProductsForItem,
+  upsertVendorProduct,
+  deleteVendorProduct,
+  fetchVendors,
+  type VendorActionState,
+  type VendorProductForItem,
+  type Vendor,
+} from "../vendors/actions";
 import { UnitSwitcher } from "@/components/unit-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +63,9 @@ import {
   Refrigerator,
   Snowflake,
   BadgeHelp,
+  Store,
+  Barcode,
+  Pencil,
 } from "lucide-react";
 
 const initialState: InventoryActionState = { ok: true };
@@ -155,6 +168,389 @@ function IconToggle<T extends string>({
         })}
       </div>
     </TooltipProvider>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Vendor Products Section (shown in edit mode)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const vendorProductInitialState: VendorActionState = { ok: true };
+
+function VendorProductRow({
+  vp,
+  onDeleted,
+}: {
+  vp: VendorProductForItem;
+  onDeleted: () => void;
+}) {
+  const [editOpen, setEditOpen] = useState(false);
+  const [state, formAction, pending] = useActionState(
+    upsertVendorProduct,
+    vendorProductInitialState,
+  );
+  const [isDeleting, setIsDeleting] = useState(false);
+  const hasSubmitted = useRef(false);
+  const onDeletedRef = useRef(onDeleted);
+  onDeletedRef.current = onDeleted;
+
+  useEffect(() => {
+    if (pending) {
+      hasSubmitted.current = true;
+    } else if (hasSubmitted.current) {
+      hasSubmitted.current = false;
+      if (state.ok) setEditOpen(false);
+    }
+  }, [pending, state]);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    const fd = new FormData();
+    fd.append("id", vp.id);
+    const result = await deleteVendorProduct(vendorProductInitialState, fd);
+    setIsDeleting(false);
+    if (result.ok) {
+      setEditOpen(false);
+      onDeletedRef.current();
+    }
+  };
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-accent/10 transition-colors text-xs cursor-pointer"
+        onClick={() => setEditOpen(true)}
+      >
+        <Store className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+        <span className="font-medium">{vp.vendor?.name ?? "Unknown"}</span>
+        {vp.upc && (
+          <span className="text-muted-foreground font-mono truncate">
+            {vp.upc}
+          </span>
+        )}
+        {vp.pack_size && (
+          <span className="text-muted-foreground ml-auto whitespace-nowrap">
+            {vp.pack_size} {vp.pack_unit}
+          </span>
+        )}
+        {!vp.upc && !vp.pack_size && (
+          <span className="text-muted-foreground italic">No UPC set</span>
+        )}
+      </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-md border border-foreground">
+          <DialogHeader>
+            <DialogTitle>
+              Edit {vp.vendor?.name} Product
+            </DialogTitle>
+            <DialogDescription>
+              Update vendor-specific product details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form id="vp-edit-form" action={formAction} className="grid gap-4">
+            <Input type="hidden" name="id" value={vp.id} />
+            <Input type="hidden" name="vendor_id" value={vp.vendor_id} />
+            <Input type="hidden" name="inventory_id" value={vp.inventory_id} />
+
+            <div className="grid gap-2">
+              <label htmlFor={`vp-upc-${vp.id}`} className="text-sm font-medium">
+                UPC Code
+              </label>
+              <Input
+                id={`vp-upc-${vp.id}`}
+                name="upc"
+                placeholder="e.g., 0001111042342"
+                defaultValue={vp.upc ?? ""}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label htmlFor={`vp-pname-${vp.id}`} className="text-sm font-medium">
+                Product Name
+              </label>
+              <Input
+                id={`vp-pname-${vp.id}`}
+                name="product_name"
+                placeholder="e.g., Kroger Chicken Breast 3lb"
+                defaultValue={vp.product_name ?? ""}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label htmlFor={`vp-psize-${vp.id}`} className="text-sm font-medium">
+                  Pack Size
+                </label>
+                <Input
+                  id={`vp-psize-${vp.id}`}
+                  name="pack_size"
+                  type="number"
+                  step={0.1}
+                  min={0}
+                  placeholder="e.g., 3"
+                  defaultValue={vp.pack_size ?? ""}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Pack Unit</label>
+                <UnitSwitcher
+                  currentVal={vp.pack_unit ?? "lb"}
+                  name="pack_unit"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <label htmlFor={`vp-notes-${vp.id}`} className="text-sm font-medium">
+                Notes
+              </label>
+              <Input
+                id={`vp-notes-${vp.id}`}
+                name="notes"
+                placeholder="Optional notes"
+                defaultValue={vp.notes ?? ""}
+              />
+            </div>
+
+            {!state.ok && (
+              <p className="text-sm text-destructive">{state.error}</p>
+            )}
+          </form>
+
+          <DialogFooter className="sm:justify-between">
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleDelete}
+              disabled={isDeleting || pending}
+            >
+              {isDeleting ? (
+                <Loader className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
+            </Button>
+            <div className="flex gap-2">
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                form="vp-edit-form"
+                disabled={pending || isDeleting}
+              >
+                {pending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function VendorProductsSection({ inventoryId }: { inventoryId: string }) {
+  const [vendorProducts, setVendorProducts] = useState<VendorProductForItem[]>(
+    [],
+  );
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addState, addFormAction, addPending] = useActionState(
+    upsertVendorProduct,
+    vendorProductInitialState,
+  );
+  const [selectedVendorId, setSelectedVendorId] = useState("");
+  const addHasSubmitted = useRef(false);
+
+  const loadData = useCallback(async () => {
+    const [vpData, vendorData] = await Promise.all([
+      fetchVendorProductsForItem(inventoryId),
+      fetchVendors(),
+    ]);
+    setVendorProducts(vpData);
+    setVendors(vendorData.vendors);
+    setLoading(false);
+  }, [inventoryId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Handle add form success
+  useEffect(() => {
+    if (addPending) {
+      addHasSubmitted.current = true;
+    } else if (addHasSubmitted.current) {
+      addHasSubmitted.current = false;
+      if (addState.ok) {
+        setAddOpen(false);
+        loadData();
+      }
+    }
+  }, [addPending, addState, loadData]);
+
+  // Default to first vendor not already mapped
+  useEffect(() => {
+    if (addOpen && vendors.length > 0) {
+      const mappedVendorIds = new Set(vendorProducts.map((vp) => vp.vendor_id));
+      const unmapped = vendors.find((v) => !mappedVendorIds.has(v.id));
+      setSelectedVendorId(unmapped?.id ?? vendors[0].id);
+    }
+  }, [addOpen, vendors, vendorProducts]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
+        <Loader className="w-3 h-3 animate-spin" />
+        Loading vendor info...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">Vendor Products</label>
+        {vendors.length > 0 && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="w-3 h-3" />
+            Add
+          </Button>
+        )}
+      </div>
+
+      {vendorProducts.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No vendor products mapped.
+          {vendors.length === 0 && " Add vendors in Food → Vendors first."}
+        </p>
+      ) : (
+        <div className="rounded-md border divide-y">
+          {vendorProducts.map((vp) => (
+            <VendorProductRow
+              key={vp.id}
+              vp={vp}
+              onDeleted={loadData}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Add vendor product inline dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-md border border-foreground">
+          <DialogHeader>
+            <DialogTitle>Add Vendor Product</DialogTitle>
+            <DialogDescription>
+              Map this item to a vendor-specific product.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form id="vp-add-form" action={addFormAction} className="grid gap-4">
+            <Input type="hidden" name="inventory_id" value={inventoryId} />
+            <Input type="hidden" name="vendor_id" value={selectedVendorId} />
+
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Vendor</label>
+              <div className="flex flex-wrap gap-1">
+                {vendors.map((v) => (
+                  <Button
+                    key={v.id}
+                    type="button"
+                    variant={v.id === selectedVendorId ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedVendorId(v.id)}
+                  >
+                    <Store className="w-3 h-3" />
+                    {v.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <label htmlFor="vp-add-upc" className="text-sm font-medium">
+                UPC Code
+              </label>
+              <Input
+                id="vp-add-upc"
+                name="upc"
+                placeholder="e.g., 0001111042342"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label htmlFor="vp-add-pname" className="text-sm font-medium">
+                Product Name
+              </label>
+              <Input
+                id="vp-add-pname"
+                name="product_name"
+                placeholder="e.g., Kroger Chicken Breast 3lb"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label htmlFor="vp-add-psize" className="text-sm font-medium">
+                  Pack Size
+                </label>
+                <Input
+                  id="vp-add-psize"
+                  name="pack_size"
+                  type="number"
+                  step={0.1}
+                  min={0}
+                  placeholder="e.g., 3"
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Pack Unit</label>
+                <UnitSwitcher currentVal="lb" name="pack_unit" />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <label htmlFor="vp-add-notes" className="text-sm font-medium">
+                Notes
+              </label>
+              <Input
+                id="vp-add-notes"
+                name="notes"
+                placeholder="Optional notes"
+              />
+            </div>
+
+            {!addState.ok && (
+              <p className="text-sm text-destructive">{addState.error}</p>
+            )}
+          </form>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button
+              type="submit"
+              form="vp-add-form"
+              disabled={addPending}
+            >
+              {addPending ? "Saving..." : "Add"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -304,6 +700,11 @@ function InventoryFormContent({
 
         {!state.ok && <p className="text-sm text-destructive">{state.error}</p>}
       </form>
+
+      {/* Vendor products section — only shown in edit mode */}
+      {mode === "edit" && item && (
+        <VendorProductsSection inventoryId={item.id} />
+      )}
 
       <DialogFooter className={cn(mode === "edit" && "sm:justify-between")}>
         {mode === "edit" && item && (

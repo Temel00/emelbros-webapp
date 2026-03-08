@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 
 const TOKEN_URL = "https://api.kroger.com/v1/connect/oauth2/token";
 const PRODUCTS_URL = "https://api.kroger.com/v1/products";
 const CART_URL = "https://api.kroger.com/v1/cart/add";
 
-type ShoppingItem = { name: string; needed_qty: number; unit: string };
+type ShoppingItem = {
+  name: string;
+  needed_qty: number;
+  unit: string;
+  inventory_id?: string | null;
+};
 
 async function getClientCredentialsToken(): Promise<string | null> {
   const clientId = process.env.KROGER_CLIENT_ID;
@@ -72,7 +78,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No items provided" }, { status: 400 });
   }
 
-  // Get client credentials token for product search (public API)
+  // Look up saved UPCs from vendor_products for Kroger
+  const supabase = await createClient();
+
+  // Find the Kroger vendor
+  const { data: krogerVendor } = await supabase
+    .from("vendors")
+    .select("id")
+    .eq("slug", "kroger")
+    .single();
+
+  // Build a map of inventory_id → saved UPC
+  const savedUpcMap = new Map<string, string>();
+  if (krogerVendor) {
+    const inventoryIds = items
+      .map((i) => i.inventory_id)
+      .filter((id): id is string => !!id);
+
+    if (inventoryIds.length > 0) {
+      const { data: vendorProducts } = await supabase
+        .from("vendor_products")
+        .select("inventory_id, upc")
+        .eq("vendor_id", krogerVendor.id)
+        .in("inventory_id", inventoryIds)
+        .not("upc", "is", null);
+
+      for (const vp of vendorProducts ?? []) {
+        if (vp.upc) savedUpcMap.set(vp.inventory_id, vp.upc);
+      }
+    }
+  }
+
+  // Get client credentials token for searching items without saved UPCs
   const clientToken = await getClientCredentialsToken();
   if (!clientToken) {
     return NextResponse.json(
@@ -81,11 +118,16 @@ export async function POST(request: Request) {
     );
   }
 
-  // Search for each item concurrently
+  // Resolve UPCs: use saved UPC if available, otherwise search
   const results = await Promise.all(
     items.map(async (item) => {
+      // Check for saved UPC first
+      if (item.inventory_id && savedUpcMap.has(item.inventory_id)) {
+        return { item, upc: savedUpcMap.get(item.inventory_id)!, source: "saved" as const };
+      }
+      // Fall back to search
       const upc = await searchProductUpc(item.name, clientToken);
-      return { item, upc };
+      return { item, upc, source: "search" as const };
     }),
   );
 
@@ -99,6 +141,8 @@ export async function POST(request: Request) {
   const notFound = results
     .filter((r) => r.upc === null)
     .map((r) => r.item.name);
+
+  const savedCount = results.filter((r) => r.source === "saved").length;
 
   if (cartItems.length === 0) {
     return NextResponse.json(
@@ -134,7 +178,12 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, added: cartItems.length, notFound });
+  return NextResponse.json({
+    ok: true,
+    added: cartItems.length,
+    notFound,
+    savedUpcs: savedCount,
+  });
 }
 
 // Check if the user has an active Kroger session

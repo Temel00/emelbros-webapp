@@ -151,10 +151,16 @@ function ExportDialog({
     setKrogerError(null);
     setKrogerResult(null);
 
+    const krogerItems = exportItems.map((i) => ({
+      name: i.name,
+      needed_qty: i.needed_qty,
+      unit: i.unit,
+      inventory_id: i.inventory_id,
+    }));
     const res = await fetch("/api/kroger/cart", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: exportItems }),
+      body: JSON.stringify({ items: krogerItems }),
     });
 
     if (res.status === 401) {
