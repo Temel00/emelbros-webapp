@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -23,7 +24,9 @@ export default function Home() {
         <PageHeader />
         <main className="flex-1 flex flex-col gap-4 px-4 items-center">
           <h1>Home Page</h1>
-          <DashboardButton />
+          <Suspense fallback={<div className="h-10" />}>
+            <DashboardButton />
+          </Suspense>
         </main>
 
         <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-4 py-16">
