@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
 import { BackArrow } from "@/components/ui/back-arrow";
@@ -21,6 +22,7 @@ async function RecipeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const [
     recipeResult,
@@ -47,10 +49,12 @@ async function RecipeDetail({ params }: { params: Promise<{ id: string }> }) {
     supabase
       .from("inventory")
       .select("id, name, unit")
+      .eq("household_id", householdId)
       .order("name", { ascending: true }),
     supabase
       .from("tools")
       .select("id, name, location")
+      .eq("household_id", householdId)
       .order("name", { ascending: true }),
     supabase
       .from("recipe_tags")
@@ -59,6 +63,7 @@ async function RecipeDetail({ params }: { params: Promise<{ id: string }> }) {
     supabase
       .from("tags")
       .select("id, name, color")
+      .eq("household_id", householdId)
       .order("name", { ascending: true }),
   ]);
 

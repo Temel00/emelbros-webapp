@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import { convertWithDensity } from "@/lib/unit-conversions";
 
 export type ActionState = {
@@ -25,9 +26,11 @@ export type ShoppingListItem = {
 
 export async function fetchShoppingList(): Promise<ShoppingListItem[]> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
   const { data } = await supabase
     .from("shopping_list_items")
     .select("*")
+    .eq("household_id", householdId)
     .order("purchased", { ascending: true })
     .order("name", { ascending: true });
   return (data ?? []) as ShoppingListItem[];
@@ -56,6 +59,7 @@ export async function generateShoppingList(
   formData: FormData,
 ): Promise<ActionState> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const startDate = String(formData.get("start_date") || "").trim();
   const endDate = String(formData.get("end_date") || "").trim();
@@ -71,6 +75,7 @@ export async function generateShoppingList(
   const { data: mealPlans, error: mealError } = await supabase
     .from("meal_plans")
     .select("recipe_id")
+    .eq("household_id", householdId)
     .gte("scheduled_date", startDate)
     .lte("scheduled_date", endDate);
 
@@ -174,6 +179,7 @@ export async function generateShoppingList(
     needed_qty: number;
     unit: string;
     purchased: boolean;
+    household_id: string;
   }[] = [];
 
   for (const [, need] of needsMap) {
@@ -193,6 +199,7 @@ export async function generateShoppingList(
       needed_qty: Math.round(buyQty * 1000) / 1000,
       unit: need.unit,
       purchased: false,
+      household_id: householdId,
     });
   }
 
@@ -200,6 +207,7 @@ export async function generateShoppingList(
   await supabase
     .from("shopping_list_items")
     .delete()
+    .eq("household_id", householdId)
     .not("id", "is", null);
 
   if (toInsert.length > 0) {
@@ -219,9 +227,11 @@ export async function generateShoppingList(
 
 export async function clearShoppingList(): Promise<ActionState> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
   const { error } = await supabase
     .from("shopping_list_items")
     .delete()
+    .eq("household_id", householdId)
     .not("id", "is", null);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/dashboard/food/shopping-list");

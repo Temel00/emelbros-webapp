@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import {
   AddItemDialog,
   InventorySearchFilter,
@@ -25,12 +26,14 @@ async function InventoryList({
 }) {
   const searchParams = await searchParamsPromise;
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const search = searchParams.q ?? "";
   const category = searchParams.category ?? "all";
 
   // Build query for first page
   let query = supabase.from("inventory").select("*", { count: "exact" });
+  query = query.eq("household_id", householdId);
 
   if (search) {
     query = query.ilike("name", `%${search}%`);

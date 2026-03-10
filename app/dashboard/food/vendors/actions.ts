@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type { UUID } from "crypto";
 
@@ -49,9 +50,11 @@ export type VendorProductFetchResult = {
 
 export async function fetchVendors(): Promise<VendorFetchResult> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
   const { data, error } = await supabase
     .from("vendors")
     .select("*")
+    .eq("household_id", householdId)
     .order("name", { ascending: true });
 
   if (error) return { vendors: [] };
@@ -63,6 +66,7 @@ export async function addVendor(
   formData: FormData,
 ): Promise<VendorActionState> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const name = String(formData.get("name") || "").trim();
   if (!name) return { ok: false, error: "Name is required" };
@@ -70,7 +74,7 @@ export async function addVendor(
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   if (!slug) return { ok: false, error: "Invalid vendor name" };
 
-  const { error } = await supabase.from("vendors").insert({ name, slug });
+  const { error } = await supabase.from("vendors").insert({ name, slug, household_id: householdId });
 
   if (error) {
     if ((error as PostgrestError).code === "23505") {

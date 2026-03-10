@@ -1,6 +1,20 @@
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+
+async function DashboardButton() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims;
+  return user ? (
+    <Button asChild variant={"secondary"} size={"lg"}>
+      <Link href={"/dashboard"}>Dashboard</Link>
+    </Button>
+  ) : (
+    <h1>Please sign-in to see your dashboard</h1>
+  );
+}
 
 export default function Home() {
   return (
@@ -9,9 +23,7 @@ export default function Home() {
         <PageHeader />
         <main className="flex-1 flex flex-col gap-4 px-4 items-center">
           <h1>Home Page</h1>
-          <Button asChild variant={"secondary"} size={"lg"}>
-            <Link href={"/dashboard"}>Dashboard</Link>
-          </Button>
+          <DashboardButton />
         </main>
 
         <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-4 py-16">

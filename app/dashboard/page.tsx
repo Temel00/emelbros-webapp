@@ -11,9 +11,11 @@ export default function DashboardPage() {
         <BreadcrumbNav />
         <section className="w-full max-w-5xl p-5 space-y-4">
           <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <Button asChild variant="default" size="lg">
-            <Link href="/dashboard/food">Meal Planning</Link>
-          </Button>
+          <div className="flex flex-wrap gap-4">
+            <Button asChild variant="default" size="lg">
+              <Link href="/dashboard/food">Meal Planning</Link>
+            </Button>
+          </div>
         </section>
       </div>
     </main>

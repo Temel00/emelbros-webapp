@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import type { UUID } from "crypto";
 
 export type RecipeActionState = {
@@ -79,12 +80,13 @@ export async function createTagInline(
   color: string = "primary",
 ): Promise<{ ok: boolean; error?: string; tag?: Tag }> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "Name is required" };
 
   const { data, error } = await supabase
     .from("tags")
-    .insert({ name: trimmed, color })
+    .insert({ name: trimmed, color, household_id: householdId })
     .select("id, name, color")
     .single();
 
@@ -107,6 +109,7 @@ export async function addRecipe(
   formData: FormData,
 ): Promise<RecipeActionState> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const name = String(formData.get("name") || "").trim();
   const prepMinutes = Number(formData.get("prep_minutes"));
@@ -127,7 +130,8 @@ export async function addRecipe(
       name,
       prep_minutes: prepMinutes,
       cook_minutes: cookMinutes,
-    } satisfies Partial<Recipe>,
+      household_id: householdId,
+    },
   ]);
 
   if (error) {
@@ -250,6 +254,7 @@ export async function fetchRecipes(
   timeRange: number | null,
 ): Promise<RecipeFetchResult> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   try {
     // Early return if no filters and no search
@@ -327,6 +332,7 @@ export async function fetchRecipes(
         .select(
           "id, name, prep_minutes, cook_minutes, total_minutes, recipe_tags(id, tag:tags(id, name, color))",
         );
+      query = query.eq("household_id", householdId);
 
       // Apply recipe IDs filter
       if (recipeIdsFilter !== null) {
@@ -368,6 +374,7 @@ export async function fetchRecipes(
         .select(
           "id, name, prep_minutes, cook_minutes, total_minutes, recipe_tags(id, tag:tags(id, name, color))",
         );
+      query = query.eq("household_id", householdId);
 
       // Apply search filter
       if (search) {

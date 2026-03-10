@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
 import { VendorsClient } from "./widgets";
@@ -19,11 +20,13 @@ async function VendorsContent({
 }) {
   const searchParams = await searchParamsPromise;
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   // Fetch all vendors
   const { data: vendorData } = await supabase
     .from("vendors")
     .select("*")
+    .eq("household_id", householdId)
     .order("name", { ascending: true });
 
   const vendors = (vendorData ?? []) as Vendor[];
@@ -58,6 +61,7 @@ async function VendorsContent({
   const { data: inventoryData } = await supabase
     .from("inventory")
     .select("id, name, unit")
+    .eq("household_id", householdId)
     .order("name", { ascending: true });
 
   const inventoryItems = (inventoryData ?? []) as {
