@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { Users } from "lucide-react";
 import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { hasEnvVars } from "@/lib/utils";
@@ -18,7 +19,13 @@ export function PageHeader() {
         {!hasEnvVars ? (
           <p>Missing ENV vars</p>
         ) : (
-          <div className="flex justify-end">
+          <div className="flex justify-end items-center gap-2">
+            <Link
+              href="/dashboard/household"
+              className="text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Users className="w-4 h-4" />
+            </Link>
             <Suspense>
               <AuthButton />
             </Suspense>

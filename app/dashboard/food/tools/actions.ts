@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type { UUID } from "crypto";
 
@@ -28,8 +29,9 @@ export async function fetchTools(
   itemsPerLoad: number,
 ): Promise<ToolFetchResult> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
-  let query = supabase.from("tools").select("*", { count: "exact" });
+  let query = supabase.from("tools").select("*", { count: "exact" }).eq("household_id", householdId);
 
   if (search) {
     query = query.ilike("name", `%${search}%`);
@@ -61,6 +63,7 @@ export async function addTool(
   formData: FormData,
 ): Promise<ToolActionState> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const name = String(formData.get("name") || "").trim();
   const location = String(formData.get("location") || "").trim() || null;
@@ -72,7 +75,8 @@ export async function addTool(
   const { count: nameCount, error: nameCheckError } = await supabase
     .from("tools")
     .select("id", { count: "exact", head: true })
-    .ilike("name", name);
+    .ilike("name", name)
+    .eq("household_id", householdId);
 
   if (nameCheckError) {
     return {
@@ -86,7 +90,7 @@ export async function addTool(
 
   const { error: insertError } = await supabase
     .from("tools")
-    .insert({ name, location });
+    .insert({ name, location, household_id: householdId });
 
   if (insertError) {
     if ((insertError as PostgrestError).code === "23505") {

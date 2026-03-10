@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import type { PostgrestError } from "@supabase/supabase-js";
 import type { UUID } from "crypto";
 import { getUnitsForCategory } from "@/lib/unit-conversions";
@@ -35,8 +36,12 @@ export async function fetchInventoryItems(
   itemsPerLoad: number,
 ): Promise<InventoryFetchResult> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
-  let query = supabase.from("inventory").select("*", { count: "exact" });
+  let query = supabase
+    .from("inventory")
+    .select("*", { count: "exact" })
+    .eq("household_id", householdId);
 
   if (search) {
     query = query.ilike("name", `%${search}%`);
@@ -73,6 +78,7 @@ export async function addInventoryItem(
   formData: FormData,
 ): Promise<InventoryActionState> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const name = String(formData.get("name") || "").trim();
   const quantityRaw = formData.get("quantity");
@@ -102,6 +108,7 @@ export async function addInventoryItem(
   const { count: nameCount, error: nameCheckError } = await supabase
     .from("inventory")
     .select("id", { count: "exact", head: true })
+    .eq("household_id", householdId)
     .ilike("name", name);
 
   if (nameCheckError) {
@@ -123,7 +130,8 @@ export async function addInventoryItem(
         unit,
         unit_category: unitCategory,
         location,
-      } satisfies Partial<InventoryItem>,
+        household_id: householdId,
+      },
     ]);
 
   if (insertError) {

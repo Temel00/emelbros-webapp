@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import type { UUID } from "crypto";
 
 export type ActionState = {
@@ -381,12 +382,13 @@ export async function createToolInline(
   name: string,
 ): Promise<{ ok: boolean; error?: string; tool?: Tool }> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "Name is required" };
 
   const { data, error } = await supabase
     .from("tools")
-    .insert({ name: trimmed })
+    .insert({ name: trimmed, household_id: householdId })
     .select("id, name, location")
     .single();
 

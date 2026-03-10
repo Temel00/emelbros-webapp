@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 
 export type ActionState = {
   ok: boolean;
@@ -28,6 +29,7 @@ export async function fetchMealPlansForMonth(
   month: number,
 ): Promise<MealPlan[]> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const start = `${year}-${String(month).padStart(2, "0")}-01`;
   const lastDay = new Date(year, month, 0).getDate();
@@ -36,6 +38,7 @@ export async function fetchMealPlansForMonth(
   const { data, error } = await supabase
     .from("meal_plans")
     .select("id, recipe_id, scheduled_date, cook_time, notes, recipe:recipes(id, name, total_minutes)")
+    .eq("household_id", householdId)
     .gte("scheduled_date", start)
     .lte("scheduled_date", end)
     .order("scheduled_date", { ascending: true })
@@ -47,9 +50,11 @@ export async function fetchMealPlansForMonth(
 
 export async function fetchAllRecipes(): Promise<MealPlanRecipe[]> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
   const { data, error } = await supabase
     .from("recipes")
     .select("id, name, total_minutes")
+    .eq("household_id", householdId)
     .order("name", { ascending: true });
   if (error) return [];
   return (data ?? []) as MealPlanRecipe[];
@@ -57,6 +62,7 @@ export async function fetchAllRecipes(): Promise<MealPlanRecipe[]> {
 
 export async function addMealPlan(formData: FormData): Promise<ActionState> {
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const recipeId = String(formData.get("recipe_id") || "").trim();
   const scheduledDate = String(formData.get("scheduled_date") || "").trim();
@@ -71,6 +77,7 @@ export async function addMealPlan(formData: FormData): Promise<ActionState> {
     scheduled_date: scheduledDate,
     cook_time: cookTime,
     notes,
+    household_id: householdId,
   });
 
   if (error) return { ok: false, error: error.message };

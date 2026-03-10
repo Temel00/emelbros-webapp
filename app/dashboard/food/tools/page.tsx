@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import {
   AddToolDialog,
   ToolsSearchFilter,
@@ -22,10 +23,12 @@ async function ToolsList({
 }) {
   const searchParams = await searchParamsPromise;
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   const search = searchParams.q ?? "";
 
   let query = supabase.from("tools").select("*", { count: "exact" });
+  query = query.eq("household_id", householdId);
 
   if (search) {
     query = query.ilike("name", `%${search}%`);

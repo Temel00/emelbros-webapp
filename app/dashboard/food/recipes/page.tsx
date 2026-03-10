@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getUserHouseholdId } from "@/lib/supabase/household";
 import { AddRecipeButton, InfiniteRecipesList, RecipeSearchFilter } from "./widgets";
 import { fetchRecipes, type Tag } from "./actions";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
@@ -24,6 +25,7 @@ async function RecipesListWithFilters({
 }) {
   const searchParams = await searchParamsPromise;
   const supabase = await createClient();
+  const householdId = await getUserHouseholdId();
 
   // Parse URL params
   const search = searchParams.q ?? "";
@@ -37,8 +39,8 @@ async function RecipesListWithFilters({
 
   // Fetch filter options and recipes in parallel
   const [tagsResult, toolsResult, recipesResult] = await Promise.all([
-    supabase.from("tags").select("id, name, color").order("name"),
-    supabase.from("tools").select("id, name").order("name"),
+    supabase.from("tags").select("id, name, color").eq("household_id", householdId).order("name"),
+    supabase.from("tools").select("id, name").eq("household_id", householdId).order("name"),
     fetchRecipes(0, 15, search, tagIds, toolIds, timeRange),
   ]);
 
