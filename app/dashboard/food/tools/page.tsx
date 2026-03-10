@@ -7,8 +7,6 @@ import {
   InfiniteToolsList,
 } from "./widgets";
 import type { Tool } from "./actions";
-import { BreadcrumbNav } from "@/components/breadcrumb-nav";
-import { PageHeader } from "@/components/page-header";
 
 const ITEMS_PER_LOAD = 15;
 
@@ -74,22 +72,16 @@ type PageProps = {
 
 export default function ToolsPage({ searchParams }: PageProps) {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-4 items-center">
-        <PageHeader />
-        <BreadcrumbNav />
-        <section className="w-full max-w-5xl p-5 space-y-4">
-          <Suspense fallback={<div className="h-10" />}>
-            <div className="flex justify-between">
-              <h1 className="text-2xl font-semibold">Tools</h1>
-              <AddToolDialog />
-            </div>
-          </Suspense>
-          <Suspense fallback={<div>Loading tools...</div>}>
-            <ToolsList searchParamsPromise={searchParams} />
-          </Suspense>
-        </section>
-      </div>
-    </main>
+    <section className="w-full max-w-5xl p-5 space-y-4">
+      <Suspense fallback={<div className="h-10" />}>
+        <div className="flex justify-between">
+          <h1 className="text-2xl font-semibold">Tools</h1>
+          <AddToolDialog />
+        </div>
+      </Suspense>
+      <Suspense fallback={<div>Loading tools...</div>}>
+        <ToolsList searchParamsPromise={searchParams} />
+      </Suspense>
+    </section>
   );
 }

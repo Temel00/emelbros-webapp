@@ -25,7 +25,7 @@ import {
   type VendorActionState,
   type VendorProductForItem,
   type Vendor,
-} from "../vendors/actions";
+} from "../../vendors/actions";
 import { UnitSwitcher } from "@/components/unit-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,20 +52,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { convertUnit } from "@/lib/unit-conversions";
 import {
   Trash2,
   Loader,
   Plus,
-  Weight,
-  FlaskConical,
-  Dice1,
+  Lock,
+  LockOpen,
   Croissant,
   Refrigerator,
   Snowflake,
   BadgeHelp,
   Store,
-  Barcode,
-  Pencil,
 } from "lucide-react";
 
 const initialState: InventoryActionState = { ok: true };
@@ -74,24 +72,12 @@ const initialState: InventoryActionState = { ok: true };
 // Icon Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
-const UNIT_CATEGORY_ICONS = {
-  weight: { icon: Weight, label: "Weight" },
-  volume: { icon: FlaskConical, label: "Volume" },
-  count: { icon: Dice1, label: "Count" },
-} as const;
-
 const LOCATION_ICONS = {
   pantry: { icon: Croissant, label: "Pantry" },
   fridge: { icon: Refrigerator, label: "Fridge" },
   freezer: { icon: Snowflake, label: "Freezer" },
   other: { icon: BadgeHelp, label: "Other" },
 } as const;
-
-const UNIT_CATEGORY_OPTIONS = [
-  { value: "weight" as const, icon: Weight, label: "Weight" },
-  { value: "volume" as const, icon: FlaskConical, label: "Volume" },
-  { value: "count" as const, icon: Dice1, label: "Count" },
-];
 
 const LOCATION_OPTIONS = [
   { value: "pantry" as const, icon: Croissant, label: "Pantry" },
@@ -574,17 +560,30 @@ function InventoryFormContent({
   const nameRef = useRef<HTMLInputElement>(null);
   const hasSubmitted = useRef(false);
   const submittedNameRef = useRef<string>("");
-  const [unitCategory, setUnitCategory] = useState<
-    InventoryItem["unit_category"]
-  >(item?.unit_category ?? null);
   const [location, setLocation] = useState<InventoryItem["location"]>(
     item?.location ?? null,
   );
+  const [quantity, setQuantity] = useState<string>(
+    item?.on_hand_qty != null ? String(item.on_hand_qty) : "",
+  );
+  const [unit, setUnit] = useState(item?.unit ?? "g");
+  const [lockValue, setLockValue] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
   const onDeleteRef = useRef(onDelete);
   onDeleteRef.current = onDelete;
+
+  const handleUnitChange = (newUnit: string) => {
+    if (!lockValue && quantity) {
+      const converted = convertUnit(Number(quantity), unit, newUnit);
+      if (converted !== null) {
+        // Format: remove trailing zeros, max 4 decimal places
+        setQuantity(String(parseFloat(converted.toFixed(4))));
+      }
+    }
+    setUnit(newUnit);
+  };
 
   // Wrap formAction to capture the submitted name
   const wrappedFormAction = (formData: FormData) => {
@@ -641,8 +640,8 @@ function InventoryFormContent({
         {mode === "edit" && item && (
           <Input type="hidden" name="id" value={item.id} />
         )}
-        <Input type="hidden" name="unit_category" value={unitCategory ?? ""} />
         <Input type="hidden" name="location" value={location ?? ""} />
+        <Input type="hidden" name="unit" value={unit} />
 
         <div className="grid gap-2">
           <label htmlFor="name" className="text-sm font-medium">
@@ -658,44 +657,67 @@ function InventoryFormContent({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-2">
+        <div className="grid gap-2">
+          <div className="flex items-center justify-between">
             <label htmlFor="quantity" className="text-sm font-medium">
               Quantity
             </label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setLockValue((v) => !v)}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs transition-colors",
+                      lockValue
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "border-input text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    {lockValue ? (
+                      <Lock className="w-3 h-3" />
+                    ) : (
+                      <LockOpen className="w-3 h-3" />
+                    )}
+                    {lockValue ? "Locked" : "Convert"}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {lockValue
+                      ? "Value stays the same when changing units"
+                      : "Value auto-converts when changing units"}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <Input
               id="quantity"
               name="quantity"
               type="number"
-              step={0.1}
+              step="any"
               min={0}
               placeholder="0"
-              defaultValue={item?.on_hand_qty ?? ""}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
             />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Unit</label>
-            <UnitSwitcher currentVal={item?.unit ?? "g"} name="unit" />
+            <UnitSwitcher
+              currentVal={unit}
+              onValueChange={handleUnitChange}
+            />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Category</label>
-            <IconToggle
-              options={UNIT_CATEGORY_OPTIONS}
-              value={unitCategory}
-              onChange={setUnitCategory}
-            />
-          </div>
-          <div className="grid gap-2">
-            <label className="text-sm font-medium">Location</label>
-            <IconToggle
-              options={LOCATION_OPTIONS}
-              value={location}
-              onChange={setLocation}
-            />
-          </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium">Location</label>
+          <IconToggle
+            options={LOCATION_OPTIONS}
+            value={location}
+            onChange={setLocation}
+          />
         </div>
 
         {!state.ok && <p className="text-sm text-destructive">{state.error}</p>}
@@ -863,13 +885,6 @@ export function InventoryItemRow({ item }: { item: InventoryItem }) {
               : null}
           </p>
           <p className="w-8">{item.unit}</p>
-
-          {item.unit_category && UNIT_CATEGORY_ICONS[item.unit_category] && (
-            <IconWithTooltip
-              icon={UNIT_CATEGORY_ICONS[item.unit_category].icon}
-              label={UNIT_CATEGORY_ICONS[item.unit_category].label}
-            />
-          )}
         </div>
       </div>
       <InventoryItemDialog

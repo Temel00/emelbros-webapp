@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserHouseholdId } from "@/lib/supabase/household";
 import { AddRecipeButton, InfiniteRecipesList, RecipeSearchFilter } from "./widgets";
 import { fetchRecipes, type Tag } from "./actions";
-import { BreadcrumbNav } from "@/components/breadcrumb-nav";
-import { PageHeader } from "@/components/page-header";
 
 type SearchParams = {
   q?: string;
@@ -75,20 +73,14 @@ export default function RecipesPage({
   searchParams: Promise<SearchParams>;
 }) {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-4 items-center">
-        <PageHeader />
-        <BreadcrumbNav />
-        <section className="w-full max-w-5xl p-5 space-y-4">
-          <div className="flex justify-between">
-            <h1 className="text-2xl font-semibold">Recipes</h1>
-            <AddRecipeButton />
-          </div>
-          <Suspense fallback={<div>Loading recipes...</div>}>
-            <RecipesListWithFilters searchParamsPromise={searchParams} />
-          </Suspense>
-        </section>
+    <>
+      <div className="flex justify-between">
+        <h1 className="text-2xl font-semibold">Recipes</h1>
+        <AddRecipeButton />
       </div>
-    </main>
+      <Suspense fallback={<div>Loading recipes...</div>}>
+        <RecipesListWithFilters searchParamsPromise={searchParams} />
+      </Suspense>
+    </>
   );
 }
