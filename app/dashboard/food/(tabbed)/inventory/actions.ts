@@ -19,7 +19,6 @@ export type InventoryItem = {
   on_hand_qty: number;
   unit: string;
   density: number;
-  unit_category: "weight" | "volume" | "count" | null;
   location: "pantry" | "fridge" | "freezer" | "other" | null;
 };
 
@@ -84,12 +83,6 @@ export async function addInventoryItem(
   const quantityRaw = formData.get("quantity");
   const quantity = Number(quantityRaw);
   const unit = String(formData.get("unit") || "g").trim();
-  const unitCategoryRaw = String(formData.get("unit_category") || "").trim();
-  const unitCategory = (
-    ["weight", "volume", "count"].includes(unitCategoryRaw)
-      ? unitCategoryRaw
-      : null
-  ) as InventoryItem["unit_category"];
   const locationRaw = String(formData.get("location") || "").trim();
   const location = (
     ["pantry", "fridge", "freezer", "other"].includes(locationRaw)
@@ -128,7 +121,6 @@ export async function addInventoryItem(
         name,
         on_hand_qty: quantity,
         unit,
-        unit_category: unitCategory,
         location,
         household_id: householdId,
       },
@@ -187,12 +179,6 @@ export async function updateInventoryItem(
     if (unitVal) {
       next.unit = unitVal;
     }
-  }
-  if (formData.has("unit_category")) {
-    const ucRaw = String(formData.get("unit_category") || "").trim();
-    next.unit_category = (
-      ["weight", "volume", "count"].includes(ucRaw) ? ucRaw : null
-    ) as InventoryItem["unit_category"];
   }
   if (formData.has("location")) {
     const locRaw = String(formData.get("location") || "").trim();

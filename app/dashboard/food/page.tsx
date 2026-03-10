@@ -1,41 +1,32 @@
-import Link from "next/link";
-import { BreadcrumbNav } from "@/components/breadcrumb-nav";
-import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
+import { fetchFoodSummary } from "./actions";
+import { SummaryDashboard } from "./widgets";
 
-export default function MealPlanningPage() {
+async function FoodDashboardContent() {
+  const summary = await fetchFoodSummary();
+  return <SummaryDashboard summary={summary} />;
+}
+
+export default function FoodPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-4 items-center">
-        <PageHeader />
-        <BreadcrumbNav />
-        <section className="w-full max-w-5xl p-5 space-y-4">
-          <h1 className="text-2xl font-semibold">Meal Planning</h1>
-          <div className="flex flex-wrap gap-4">
-            <Button asChild variant="default" size="lg">
-              <Link href="/dashboard/food/inventory">Inventory</Link>
-            </Button>
-            <Button asChild variant="secondary" size="lg">
-              <Link href="/dashboard/food/recipes">Recipes</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/dashboard/food/tools">Tools</Link>
-            </Button>
-            <Button asChild variant="tertiary" size="lg">
-              <Link href="/dashboard/food/meal-planning">Meal Planning</Link>
-            </Button>
-            <Button asChild variant="accent" size="lg">
-              <Link href="/dashboard/food/shopping-list">Shopping List</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/dashboard/food/vendors">Vendors</Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/dashboard/food/household">Household</Link>
-            </Button>
-          </div>
-        </section>
-      </div>
-    </main>
+    <section className="w-full max-w-5xl p-5 space-y-4">
+      <h1 className="text-2xl font-semibold">Food</h1>
+      <Suspense fallback={<DashboardSkeleton />}>
+        <FoodDashboardContent />
+      </Suspense>
+    </section>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-40 rounded-xl border bg-card/40 animate-pulse"
+        />
+      ))}
+    </div>
   );
 }

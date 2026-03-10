@@ -3,8 +3,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getUserHouseholdId } from "@/lib/supabase/household";
-import { BreadcrumbNav } from "@/components/breadcrumb-nav";
-import { PageHeader } from "@/components/page-header";
 import { BackArrow } from "@/components/ui/back-arrow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,8 +87,6 @@ async function RecipeDetail({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <BreadcrumbNav overrides={{ [id]: recipe.name }} />
-
       {/* Header with Recipe Name and Edit Button */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 sm:gap-3">
@@ -147,15 +143,8 @@ export default function RecipeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-4 items-center">
-        <PageHeader />
-        <section className="w-full max-w-5xl px-3 sm:px-5 py-4 sm:py-5 space-y-4">
-          <Suspense fallback={<div>Loading recipe...</div>}>
-            <RecipeDetail params={params} />
-          </Suspense>
-        </section>
-      </div>
-    </main>
+    <Suspense fallback={<div>Loading recipe...</div>}>
+      <RecipeDetail params={params} />
+    </Suspense>
   );
 }

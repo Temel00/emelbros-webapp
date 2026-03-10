@@ -7,8 +7,6 @@ import {
   InfiniteInventoryList,
 } from "./widgets";
 import type { InventoryItem } from "./actions";
-import { BreadcrumbNav } from "@/components/breadcrumb-nav";
-import { PageHeader } from "@/components/page-header";
 import { getUnitsForCategory } from "@/lib/unit-conversions";
 import type { UnitCategory } from "@/components/unit-switcher";
 
@@ -87,22 +85,16 @@ type PageProps = {
 
 export default function InventoryPage({ searchParams }: PageProps) {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-4 items-center">
-        <PageHeader />
-        <BreadcrumbNav />
-        <section className="w-full max-w-5xl p-5 space-y-4">
-          <Suspense fallback={<div className="h-10" />}>
-            <div className="flex justify-between">
-              <h1 className="text-2xl font-semibold">Inventory</h1>
-              <AddItemDialog />
-            </div>
-          </Suspense>
-          <Suspense fallback={<div>Loading inventory...</div>}>
-            <InventoryList searchParamsPromise={searchParams} />
-          </Suspense>
-        </section>
-      </div>
-    </main>
+    <>
+      <Suspense fallback={<div className="h-10" />}>
+        <div className="flex justify-between">
+          <h1 className="text-2xl font-semibold">Inventory</h1>
+          <AddItemDialog />
+        </div>
+      </Suspense>
+      <Suspense fallback={<div>Loading inventory...</div>}>
+        <InventoryList searchParamsPromise={searchParams} />
+      </Suspense>
+    </>
   );
 }
