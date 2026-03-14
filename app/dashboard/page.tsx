@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { getUserAccessLevel } from "@/lib/supabase/access";
 import { hasAccess, ACCESS_LEVEL_LABELS } from "@/lib/access-level";
 import type { AccessLevel } from "@/lib/access-level";
+import { Toolbox } from "./widgets";
 
 type SectionDef = {
   title: string;
@@ -106,6 +107,8 @@ async function DashboardContent() {
           );
         })}
       </div>
+
+      {hasAccess(accessLevel, "mt_hood") && <Toolbox />}
     </>
   );
 }
