@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { UtensilsCrossed, Activity, Lock } from "lucide-react";
+import { UtensilsCrossed, Activity, Lock, Swords } from "lucide-react";
 import { BreadcrumbNav } from "@/components/breadcrumb-nav";
 import { PageHeader } from "@/components/page-header";
 import {
@@ -45,6 +45,13 @@ const SECTIONS: SectionDef[] = [
     description: "Water intake, exercises, and physical measurements",
     href: "/dashboard/health",
     icon: Activity,
+    requiredLevel: "mt_hood",
+  },
+  {
+    title: "Hobbies",
+    description: "Darts and Disc Duels",
+    href: "/dashboard/hobbies",
+    icon: Swords,
     requiredLevel: "mt_hood",
   },
 ];
