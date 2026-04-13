@@ -210,3 +210,12 @@ CREATE TABLE public.measurements (
   notes text,
   CONSTRAINT measurements_pkey PRIMARY KEY (id)
 );
+CREATE TABLE public.darts_games (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  played_at timestamp with time zone NOT NULL DEFAULT now(),
+  result text NOT NULL CHECK (result IN ('win', 'loss')),
+  opponent_name text,
+  notes text,
+  CONSTRAINT darts_games_pkey PRIMARY KEY (id)
+);
