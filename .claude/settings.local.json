@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"e:\\\\SynologyDrive\\\\Ty\\\\Dev\\\\emelbros-webapp\\\\app\\\\dashboard\\\\meal-planning\\\\recipes\\\\widgets-wrapper.tsx\")",
+      "Bash(del \"e:\\\\SynologyDrive\\\\Ty\\\\Dev\\\\emelbros-webapp\\\\app\\\\dashboard\\\\meal-planning\\\\recipes\\\\[id]\\\\widgets-wrapper.tsx\")",
+      "Bash(npm run build)",
+      "Bash(mv inventory \"\\(tabbed\\)/inventory\")",
+      "Bash(mv recipes \"\\(tabbed\\)/recipes\")",
+      "Bash(mv meal-planning \"\\(tabbed\\)/meal-planning\")",
+      "Bash(mv shopping-list \"\\(tabbed\\)/shopping-list\")",
+      "Bash(cp -r inventory \"\\(tabbed\\)/inventory\")",
+      "Bash(cp -r meal-planning \"\\(tabbed\\)/meal-planning\")",
+      "Bash(cp -r shopping-list \"\\(tabbed\\)/shopping-list\")",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/next/package.json'\\).version\\)\")",
+      "Bash(node -e \"const path = require\\('path'\\); console.log\\(path.resolve\\('./node_modules/next'\\)\\)\")",
+      "Bash(node -e \"const pkg = require\\('./node_modules/next/package.json'\\); console.log\\('next version:', pkg.version\\)\")",
+      "Bash(npx shadcn@latest add tabs --yes)",
+      "Bash(npm install *)",
+      "Bash(npx shadcn@latest add select --yes)"
+    ]
+  },
+  "deny": [
+    "Read(.env)",
+    "Read(.env.*)",
+    "Edit(.env)",
+    "Edit(.env.*)",
+    "Write(.env)",
+    "Write(.env.*)"
+  ]
+}
