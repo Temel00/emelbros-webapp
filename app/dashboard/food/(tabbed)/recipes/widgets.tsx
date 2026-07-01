@@ -2005,8 +2005,6 @@ export function InfiniteRecipesList({
   tagIds,
   toolIds,
   timeRange,
-  allTags,
-  allTools,
 }: {
   initialRecipes: RecipeWithTags[];
   initialHasMore: boolean;
@@ -2014,8 +2012,6 @@ export function InfiniteRecipesList({
   tagIds: string[];
   toolIds: string[];
   timeRange: number | null;
-  allTags: Tag[];
-  allTools: { id: string; name: string }[];
 }) {
   const [items, setItems] = useState<RecipeWithTags[]>(initialRecipes);
   const [hasMore, setHasMore] = useState(initialHasMore);

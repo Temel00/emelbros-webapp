@@ -34,7 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
-import { Loader, Pencil, Plus, Trash2, LogOut, UserPlus, X } from "lucide-react";
+import { Loader, Pencil, Trash2, LogOut, UserPlus, X } from "lucide-react";
 
 const initialState: ActionState = { ok: true };
 

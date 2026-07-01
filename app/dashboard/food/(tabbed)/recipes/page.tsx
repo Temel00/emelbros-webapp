@@ -60,8 +60,6 @@ async function RecipesListWithFilters({
         tagIds={tagIds}
         toolIds={toolIds}
         timeRange={timeRange}
-        allTags={allTags}
-        allTools={allTools}
       />
     </>
   );
